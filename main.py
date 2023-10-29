@@ -1,17 +1,22 @@
 
+
+# Fixed positions
+#C1...CN
+#REST
+# DROPOFF
+
+
 class Human():
-    def __init__(self, position, holding_box, tiredness, productivity, lr_bias):
+    def __init__(self, position, holding_box, tiredness, lr_bias):
         self.position = position
         self.holding_box = holding_box
         self.tiredness = tiredness
-        self.productivity =productivity
         self.lr_bias = lr_bias
 
     def __hash__(self):
         return hash((self.position, 
                      self.holding_box,
                      self.tiredness,
-                     self.productivity,
                      self.lr_bias))
     
     def __eq__(self, other):
@@ -19,7 +24,6 @@ class Human():
             return self.position == other.position\
                 and self.holding_box == other.holding_box\
                 and self.tiredness == other.tiredness\
-                and self.productivity == self.productivity\
                 and self.lr_bias == other.lr_bias
         return False
     
@@ -50,8 +54,8 @@ class State():
         self.human = human
         self.robot = robot
         self.belt = belt
-        self.packed = packed
-        self.missed = missed
+        self.packed = packed # count of packed packages 
+        self.missed = missed # count of missed missed
 
     def __hash__(self):
         return hash((self.human, 
@@ -78,41 +82,32 @@ class Action():
         self.human_action = human_action
         self.robot_action = robot_action
 class AtomicAction():
-    UP = 0
-    RIGHT = 1
-    DOWN = 2
-    LEFT = 3
-    PICKUP = 4
-    PUTDOWN = 5
-
-is_movement_action = dict()
-is_movement_action[AtomicAction.UP] = True
-is_movement_action[AtomicAction.RIGHT] = True
-is_movement_action[AtomicAction.DOWN] = True
-is_movement_action[AtomicAction.LEFT] = True
-is_movement_action[AtomicAction.PICKUP] = False
-is_movement_action[AtomicAction.PUTDOWN] = False
-
+    GOTO_P1 = 0
+    GOTO_P2 = 1
+    GOTO_P3 = 2
+    GOTO_P4 = 3
+    GOTO_P5 = 4
+    GOTO_DROPOFF = 5
+    GOTO_REST = 6
+    PICKUP = 7
+    PUTDOWN = 8
 
 # TODO:
 # Make observation match the structure of State
 class Observation():
 
-    def __init__(self, tiredness, productivity, lr_bias):
+    def __init__(self, tiredness, lr_bias):
         self.tiredness = tiredness
-        self.productivity = productivity
         self.lr_bias = lr_bias
 
     def __hash__(self):
-        return hash((self.tiredness, self.productivity, self.lr_bias))
+        return hash((self.tiredness, self.lr_bias))
 
     def __eq__(self, other):
         if isinstance(other, Observation):
             return self.tiredness == other.tiredness\
-                and self.productivity == other.productivity\
                 and self.lr_bias == other.lr_bias
         return False
-
 
 class Transition():
     def __init__(self, gridmap):
@@ -120,6 +115,86 @@ class Transition():
     def probability(self, current_state, resultant_state, action):
         robot_action = action.robot_action
         human_action = action.human_action
+
+        # Robot actions
+
+        # NON DETERMINISM IN ROBOT's MOVEMENTS
+        #P(s'|s,a)
+        # If the human is at [beltcell] in the s':
+            # P(robot goes to waiting) = 1
+            # P(robot at [beltcell]) = 0
+
+        # If the action is of type GOTO_[beltcell]
+        # 80 % chance of landing up in GO_TO[beltcell]
+        # 10 % chanceo f landing up in GO_TO[beltcell - 1]
+        # 10 % chance of landing up in GO_TO[beltcell + 1]
+        # Note: probability mass moves to TRUE cell if +1 or -1 is beyond boundary
+
+        # SET DETERMINISM FOR OTHER ACTIONS
+        # If action is dropoff:
+            # If robot position is adjacent to dropoff box and robot is holding box:
+                # P(true next state) = 1
+                # True state will need to have an updated packed count
+            # Else 
+                # P(true next state) = 0
+
+        # If action is pickup:
+            # If robot position is adjacent to belt box and robot is not holding box:
+                # P(true next state) = 1
+            # Else 
+                # P(true next state) = 0
+        # Note that true next state will need to include an adjustment to belt
+
+        # If action is GOTO_REST:
+            # P(true next state) = 1
+             # P(not true next state) = 0
+        # ELse
+            
+
+        # If action is GOTO_DROPOFF:
+            # If human not in dropoff:
+             # P(true state at dropoff) = 1
+            #Else:
+            # P(true state at dropoff) = 0
+            # P( robot goes to waiting  = 1)
+
+        
+        # UPDATE HUMAN CHARACTERISTICS
+        # DETERMINISTIC
+        # P(s' human tiredness = somefunction(s human tiredness)) = 1
+        # P(s' lr bias) = somepiecewisefunction(s lr bias) = 1
+        # Note: potential idea to change it to depend on action taken from s
+        
+        # HUMAN TRANSITIONS
+
+        # Humans
+
+        # MOVEMENT ACTIONS
+        # If the human action is of type GOTO_[beltcell]
+
+        # some_function(tiredness in s) chance of landing up in GO_TO[beltcell]
+
+        # If we end up taking action:
+            # lr bias number between 0 and n
+            # x% chance of going to specified state (x% calculated as a function of current position and lr bias number)
+            # 1 - x% chance of going to some other state determined as a function of (lr bias, current position)
+        
+        # For dropoff, pickup, putdown:
+        # All tiredness related
+        # No consideration of whether robot is in dropoff or not
+        # Need to consider human position
+
+        # BELT DYNAMICS
+
+        # DETERMINISTIC NATURAL BELT MOVEMENT
+        # P(BELT ARRAY AT s' = UPDATE(BELT_ARRAY at s)) = 1
+
+        # Somewhere here update missed if belt array index number goes past n
+
+    
+        # 1 - some_function(tiredness in s) chance of landing up in GO_TO_REST
+
+        # If 
 
         # If human action does not return deterministic result, return 0
 
@@ -223,10 +298,15 @@ class Transition():
 
 
 
+# Observation FN
 
+P(o | s', a)
+  
+  # Only want PO in terms of robot's perception of human characteristics
 
+  # Take true s' and apply noise to human chaaracteristics component
 
-
+  # Return obs
 
 
 
