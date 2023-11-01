@@ -15,7 +15,7 @@ class Position():
     REST_POSITION = 6
 
 
-belt_positions = {Position.PICKUP_1, Position.PICKUP_2, Position.PICKUP_3, Position.PICKUP_4, Position.PICKUP_5}
+belt_positions = [Position.PICKUP_1, Position.PICKUP_2, Position.PICKUP_3, Position.PICKUP_4, Position.PICKUP_5]
 
 def belt_to_index(position):
     if position == Position.PICKUP_1:
@@ -119,7 +119,7 @@ class AtomicAction():
     PICKUP = 7
     PUTDOWN = 8
 
-go_to_belt_actions = {Position.GOTO_P1, Position.GOTO_P2, Position.GOTO_P3, Position.GOTO_P4, Position.GOTO_P5}
+go_to_belt_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5]
 
 # TODO:
 # Make observation match the structure of State
@@ -280,7 +280,6 @@ class Transition():
 
         # Calculating probability of robot action resulting in the resultant state
         robot_action_prob = 0
-        # TODO: Add non-determinism
         if robot_action == AtomicAction.REST:
             if resultant_state.robot.position == Position.REST_POSITION:
                 robot_action_prob = 1
@@ -300,66 +299,39 @@ class Transition():
                 else:
                     return 0
 
-        elif robot_action == AtomicAction.GOTO_P1:
-            if resultant_state.human.position == Position.PICKUP_1:
-                # Robot goes to rest if it would clash with human position
-                if resultant_state.robot.position == Position.REST_POSITION:
-                    robot_action_prob = 1
-                else:
-                    return 0
-            else:
-                if resultant_state.robot.position == Position.PICKUP_1:
-                    robot_action_prob = 1
-                else:
-                    return 0
-        elif robot_action == AtomicAction.GOTO_P2:
-            if resultant_state.human.position == Position.PICKUP_2:
-                # Robot goes to rest if it would clash with human position
-                if resultant_state.robot.position == Position.REST_POSITION:
-                    robot_action_prob = 1
-                else:
-                    return 0
-            else:
-                if resultant_state.robot.position == Position.PICKUP_2:
-                    robot_action_prob = 1
-                else:
-                    return 0
-        elif robot_action == AtomicAction.GOTO_P3:
-            if resultant_state.human.position == Position.PICKUP_3:
-                # Robot goes to rest if it would clash with human position
-                if resultant_state.robot.position == Position.REST_POSITION:
-                    robot_action_prob = 1
-                else:
-                    return 0
-            else:
-                if resultant_state.robot.position == Position.PICKUP_3:
-                    robot_action_prob = 1
-                else:
-                    return 0
-        elif robot_action == AtomicAction.GOTO_P4:
-            if resultant_state.human.position == Position.PICKUP_4:
-                # Robot goes to rest if it would clash with human position
-                if resultant_state.robot.position == Position.REST_POSITION:
-                    robot_action_prob = 1
-                else:
-                    return 0
-            else:
-                if resultant_state.robot.position == Position.PICKUP_4:
-                    robot_action_prob = 1
-                else:
-                    return 0
-        elif robot_action == AtomicAction.GOTO_P5:
-            if resultant_state.human.position == Position.PICKUP_5:
-                # Robot goes to rest if it would clash with human position
-                if resultant_state.robot.position == Position.REST_POSITION:
-                    robot_action_prob = 1
-                else:
-                    return 0
-            else:
-                if resultant_state.robot.position == Position.PICKUP_5:
-                    robot_action_prob = 1
-                else:
-                    return 0
+        # Non-determinism in robot movement actions
+        if robot_action in go_to_belt_actions:
+            index = go_to_belt_actions.index(robot_action)
+            if resultant_state.robot.position == belt_positions[index] and \
+                resultant_state.human.position != resultant_state.robot.position:
+                robot_action_prob = 0.8
+                if index == 0 or index == len(belt_positions) - 1:
+                    robot_action_prob = 0.9
+
+            elif index > 0:
+                # Chance of going one location to the left of intended:
+                if resultant_state.robot.position == belt_positions[index - 1] and \
+                resultant_state.human.position != resultant_state.robot.position:
+                    robot_action_prob = 0.1
+            elif index < len(belt_positions) - 1:
+                # Chance of going one location to the right of intended
+                if resultant_state.robot.position == belt_positions[index + 1] and \
+                    resultant_state.human.position != resultant_state.robot.position:
+                    robot_action_prob = 0.1
+
+            # Probability of going to rest state from collisions with human:
+            if resultant_state.robot.position == Position.REST_POSITION:
+                robot_action_prob = 0
+                if resultant_state.human.position == belt_positions[index]:
+                    robot_action_prob += 0.8
+                    if index == 0 or index == len(belt_positions) - 1:
+                        robot_action_prob += 0.1
+                elif index > 0 and resultant_state.human.position == belt_positions[index - 1]:
+                    robot_action_prob += 0.1
+                elif index < len(belt_positions) - 1 and resultant_state.human.position == belt_positions[index + 1]:
+                    robot_action_prob += 0.1
+
+
 
         elif robot_action == AtomicAction.PUTDOWN:
             # Ensure state is applicable for put down action:
@@ -412,10 +384,29 @@ class Transition():
         # Remove the boxes:
         for index in boxes_removed:
             expected_belt[index] = 0
+
+        # Ensuring the missed count has been updated correctly:
+        if expected_belt[0] == 1:
+            # New missed package:
+            if not resultant_state.missed == current_state.missed + 1:
+                return 0
+        # No new missed packages:
+        elif not resultant_state.missed == current_state.missed:
+                return 0
+
         # Shift belt to the left:
         for i in range(len(expected_belt) - 1):
             expected_belt[i] = expected_belt[i+1]
         expected_belt[-1] = 0
+
+        # Update total collected and missed:
+        if successful_drop_off:
+            if not resultant_state.packed == current_state.packed + 1:
+                return 0
+        else:
+            if not resultant_state.packed == current_state.packed:
+                return 0
+
 
         if not expected_belt == resultant_state.belt:
             return 0
