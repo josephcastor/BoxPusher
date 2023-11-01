@@ -5,6 +5,33 @@
 #REST
 # DROPOFF
 
+class Position():
+    PICKUP_1 = 0
+    PICKUP_2 = 1
+    PICKUP_3 = 2
+    PICKUP_4 = 3
+    PICKUP_5 = 4
+    DROP_OFF = 5
+    REST_POSITION = 6
+
+
+belt_positions = {Position.PICKUP_1, Position.PICKUP_2, Position.PICKUP_3, Position.PICKUP_4, Position.PICKUP_5}
+
+def belt_to_index(position):
+    if position == Position.PICKUP_1:
+        return 1
+    elif position == Position.PICKUP_2:
+        return 2
+    elif position == Position.PICKUP_3:
+        return 3
+    elif position == Position.PICKUP_4:
+        return 4
+    else:
+        return 5
+
+total_belt_positions = 5
+
+
 
 class Human():
     def __init__(self, position, holding_box, tiredness, lr_bias):
@@ -88,9 +115,11 @@ class AtomicAction():
     GOTO_P4 = 3
     GOTO_P5 = 4
     GOTO_DROPOFF = 5
-    GOTO_REST = 6
+    REST = 6
     PICKUP = 7
     PUTDOWN = 8
+
+go_to_belt_actions = {Position.GOTO_P1, Position.GOTO_P2, Position.GOTO_P3, Position.GOTO_P4, Position.GOTO_P5}
 
 # TODO:
 # Make observation match the structure of State
@@ -112,108 +141,290 @@ class Observation():
 class Transition():
     def __init__(self, gridmap):
         self.gridmap = gridmap
+
+
     def probability(self, current_state, resultant_state, action):
         robot_action = action.robot_action
         human_action = action.human_action
 
-        # Robot actions
 
-        # NON DETERMINISM IN ROBOT's MOVEMENTS
-        #P(s'|s,a)
-        # If the human is at [beltcell] in the s':
-            # P(robot goes to waiting) = 1
-            # P(robot at [beltcell]) = 0
+        boxes_removed = set()
 
-        # If the action is of type GOTO_[beltcell]
-        # 80 % chance of landing up in GO_TO[beltcell]
-        # 10 % chanceo f landing up in GO_TO[beltcell - 1]
-        # 10 % chance of landing up in GO_TO[beltcell + 1]
-        # Note: probability mass moves to TRUE cell if +1 or -1 is beyond boundary
+        successful_drop_off = False
 
-        # SET DETERMINISM FOR OTHER ACTIONS
-        # If action is dropoff:
-            # If robot position is adjacent to dropoff box and robot is holding box:
-                # P(true next state) = 1
-                # True state will need to have an updated packed count
-            # Else 
-                # P(true next state) = 0
+        # Update tiredness (super basic for now):
+        tiredness_prob = 0
+        if current_state.human.tiredness == resultant_state.human.tiredness:
+            tiredness_prob += 0.8
+        if min(10, current_state.human.tiredness + 1) == resultant_state.human.tiredness:
+            tiredness_prob += 0.1
+        if min(10, current_state.human.tiredness + 2) == resultant_state.human.tiredness:
+            tiredness_prob += 0.1
 
-        # If action is pickup:
-            # If robot position is adjacent to belt box and robot is not holding box:
-                # P(true next state) = 1
-            # Else 
-                # P(true next state) = 0
-        # Note that true next state will need to include an adjustment to belt
 
-        # If action is GOTO_REST:
-            # P(true next state) = 1
-             # P(not true next state) = 0
-        # ELse
-            
+        # Update lr bias:
+        # TODO
 
-        # If action is GOTO_DROPOFF:
-            # If human not in dropoff:
-             # P(true state at dropoff) = 1
-            #Else:
-            # P(true state at dropoff) = 0
-            # P( robot goes to waiting  = 1)
+        # Calculating probability of human action resulting in rsultant_state:
+        human_action_prob = 0
 
-        
-        # UPDATE HUMAN CHARACTERISTICS
-        # DETERMINISTIC
-        # P(s' human tiredness = somefunction(s human tiredness)) = 1
-        # P(s' lr bias) = somepiecewisefunction(s lr bias) = 1
-        # Note: potential idea to change it to depend on action taken from s
-        
-        # HUMAN TRANSITIONS
-
-        # Humans
-
-        # MOVEMENT ACTIONS
-        # If the human action is of type GOTO_[beltcell]
-
-        # some_function(tiredness in s) chance of landing up in GO_TO[beltcell]
-
-        # If we end up taking action:
-            # lr bias number between 0 and n
-            # x% chance of going to specified state (x% calculated as a function of current position and lr bias number)
-            # 1 - x% chance of going to some other state determined as a function of (lr bias, current position)
-        
-        # For dropoff, pickup, putdown:
-        # All tiredness related
-        # No consideration of whether robot is in dropoff or not
-        # Need to consider human position
-
-        # BELT DYNAMICS
-
-        # DETERMINISTIC NATURAL BELT MOVEMENT
-        # P(BELT ARRAY AT s' = UPDATE(BELT_ARRAY at s)) = 1
-
-        # Somewhere here update missed if belt array index number goes past n
-
-    
-        # 1 - some_function(tiredness in s) chance of landing up in GO_TO_REST
-
-        # If 
-
-        # If human action does not return deterministic result, return 0
-
-        # Robot
-        # If action is a movement action
-        if (is_movement_action[robot_action]):
-            if (self.get_intended(current_state.robot_position, robot_action) == resultant_state.robot_position):
-                robot_prob = 0.8
-            elif (current_state.robot_position == resultant_state.robot_position):
-                robot_prob = 0.2
+        # If resting, human goes to rest position.
+        if human_action == AtomicAction.REST:
+            if resultant_state.human.position == Position.REST_POSITION:
+                human_action_prob = 1
             else:
-                robot_prob = 0
-        else:
-            if robot_get_intended_pickup():
-                robot_prob = 1
-            else:
-                robot_prob = 0
+                return 0
 
-        return robot_prob
+
+        elif human_action == AtomicAction.GOTO_DROPOFF:
+            if resultant_state.human.position == Position.REST_POSITION:
+                human_action_prob = current_state.human.tiredness / 10
+            elif resultant_state.human.position == Position.DROP_OFF:
+                human_action_prob = (1 - current_state.human.tiredness) / 10
+            else:
+                return 0
+
+        elif human_action == AtomicAction.PUTDOWN:
+            # Ensure state is applicable for put down action:
+            if not (current_state.human.holding_box and current_state.human.position == Position.DROP_OFF):
+                # If we can't put down, rest instead.
+                if resultant_state.human.position == Position.REST_POSITION:
+                    human_action_prob = 1
+                else:
+                    return 0
+            # If the human is holding a box and is at drop-off location:
+            else:
+                if resultant_state.human.position == Position.REST_POSITION:
+                    human_action_prob = current_state.human.tiredness / 10
+                # Successfully placed box:
+                elif resultant_state.human.position == Position.DROP_OFF and not resultant_state.human.holding_box:
+                    human_action_prob = (1 - current_state.human.tiredness) / 10
+                    successful_drop_off = True
+                else:
+                    return 0
+
+        elif human_action == AtomicAction.PICKUP:
+            # Ensure state is applicable for pick-up action
+            if not (current_state.human.position in belt_positions and not current_state.human.holding_box):
+                # Can't pick up, so rest
+                if resultant_state.human.position == Position.REST_POSITION:
+                    human_action_prob = 1
+                else:
+                    return 0
+            # If we are at the belt and not holding a box
+            else:
+                index = belt_to_index(current_state.human.position)
+                # No box at belt location:
+                if current_state.belt[index] == 0:
+                    if resultant_state.human.position == Position.REST_POSITION:
+                        human_action_prob = 1
+                    else:
+                        return 0
+                # Box at our location:
+                else:
+                    if resultant_state.human.position == Position.REST_POSITION:
+                        human_action_prob = current_state.human.tiredness / 10
+                    elif resultant_state.human.position == current_state.human.position\
+                        and resultant_state.human.holding_box == True\
+                        and resultant_state.belt[index] == 0:
+                        human_action_prob = (1 - current_state.human.tiredness) / 10
+                        boxes_removed.add(index)
+                    else:
+                        return 0
+
+
+        elif human_action in go_to_belt_actions:
+            if resultant_state.human.position == Position.REST_POSITION:
+                human_action_prob = current_state.human.tiredness / 10
+            else:
+                human_action_prob = (1 - current_state.human.tiredness) / 10
+
+                if human_action == AtomicAction.GOTO_P1:
+                    intended = 1
+                elif human_action == AtomicAction.GOTO_P2:
+                    intended = 2
+                elif human_action == AtomicAction.GOTO_P3:
+                    intended = 3
+                elif human_action == AtomicAction.GOTO_P4:
+                    intended = 4
+                else:
+                    intended = 5
+
+                bias_difference = current_state.human.lr_bias - intended
+
+                if resultant_state.human.position == Position.PICKUP_1:
+                    gap = 1 - intended
+                elif resultant_state.human.position == Position.PICKUP_2:
+                    gap = 2 - intended
+                elif resultant_state.human.position == Position.PICKUP_3:
+                    gap = 3 - intended
+                elif resultant_state.human.position == Position.PICKUP_4:
+                    gap = 4 - intended
+                elif resultant_state.human.position == Position.PICKUP_5:
+                    gap = 5 - intended
+                else:
+                    return 0  # Did not end up in pickup or rest locations
+
+                # If we have a rightward bias, and we ended up right of intended but not right of bias:
+                if 0 < gap <= bias_difference:
+                    human_action_prob *= 0.5 * (1 / abs(bias_difference) + 1)
+                # If we have a leftward bias, and we ended up left of intended but not left of bias:
+                elif 0 > gap >= bias_difference:
+                    human_action_prob *= 0.5 * (1 / abs(bias_difference) + 1)
+                # If we ended up at the intended cell:
+                elif gap == 0:
+                    human_action_prob *= 0.5 + 0.5 * (1 / abs(bias_difference) + 1)
+                # lr-bias conflicts with gap
+                else:
+                    return 0
+
+        # Calculating probability of robot action resulting in the resultant state
+        robot_action_prob = 0
+        # TODO: Add non-determinism
+        if robot_action == AtomicAction.REST:
+            if resultant_state.robot.position == Position.REST_POSITION:
+                robot_action_prob = 1
+            else:
+                return 0
+
+        elif robot_action == AtomicAction.GOTO_DROPOFF:
+            if resultant_state.human.position == Position.DROP_OFF:
+                # Robot goes to rest if it would clash with human position
+                if resultant_state.robot.position == Position.REST_POSITION:
+                    robot_action_prob = 1
+                else:
+                    return 0
+            else:
+                if resultant_state.robot.position == Position.DROP_OFF:
+                    robot_action_prob = 1
+                else:
+                    return 0
+
+        elif robot_action == AtomicAction.GOTO_P1:
+            if resultant_state.human.position == Position.PICKUP_1:
+                # Robot goes to rest if it would clash with human position
+                if resultant_state.robot.position == Position.REST_POSITION:
+                    robot_action_prob = 1
+                else:
+                    return 0
+            else:
+                if resultant_state.robot.position == Position.PICKUP_1:
+                    robot_action_prob = 1
+                else:
+                    return 0
+        elif robot_action == AtomicAction.GOTO_P2:
+            if resultant_state.human.position == Position.PICKUP_2:
+                # Robot goes to rest if it would clash with human position
+                if resultant_state.robot.position == Position.REST_POSITION:
+                    robot_action_prob = 1
+                else:
+                    return 0
+            else:
+                if resultant_state.robot.position == Position.PICKUP_2:
+                    robot_action_prob = 1
+                else:
+                    return 0
+        elif robot_action == AtomicAction.GOTO_P3:
+            if resultant_state.human.position == Position.PICKUP_3:
+                # Robot goes to rest if it would clash with human position
+                if resultant_state.robot.position == Position.REST_POSITION:
+                    robot_action_prob = 1
+                else:
+                    return 0
+            else:
+                if resultant_state.robot.position == Position.PICKUP_3:
+                    robot_action_prob = 1
+                else:
+                    return 0
+        elif robot_action == AtomicAction.GOTO_P4:
+            if resultant_state.human.position == Position.PICKUP_4:
+                # Robot goes to rest if it would clash with human position
+                if resultant_state.robot.position == Position.REST_POSITION:
+                    robot_action_prob = 1
+                else:
+                    return 0
+            else:
+                if resultant_state.robot.position == Position.PICKUP_4:
+                    robot_action_prob = 1
+                else:
+                    return 0
+        elif robot_action == AtomicAction.GOTO_P5:
+            if resultant_state.human.position == Position.PICKUP_5:
+                # Robot goes to rest if it would clash with human position
+                if resultant_state.robot.position == Position.REST_POSITION:
+                    robot_action_prob = 1
+                else:
+                    return 0
+            else:
+                if resultant_state.robot.position == Position.PICKUP_5:
+                    robot_action_prob = 1
+                else:
+                    return 0
+
+        elif robot_action == AtomicAction.PUTDOWN:
+            # Ensure state is applicable for put down action:
+            if not (current_state.robot.holding_box and current_state.robot.position == Position.DROP_OFF) \
+                    or resultant_state.human.position == Position.DROP_OFF:
+                # If we can't put down, rest instead.
+                if resultant_state.human.position == Position.REST_POSITION:
+                    robot_action_prob = 1
+                else:
+                    return 0
+            # If the human is holding a box and is at drop-off location:
+            else:
+                # Successfully placed box:
+                if resultant_state.robot.position == Position.DROP_OFF and not resultant_state.robot.holding_box:
+                    robot_action_prob = 1
+                    successful_drop_off = True
+                else:
+                    return 0
+
+        elif robot_action == AtomicAction.PICKUP:
+            # Ensure state is applicable for pick-up action
+            if not (current_state.robot.position in belt_positions and not current_state.robot.holding_box):
+                # Can't pick up, so rest
+                if resultant_state.robot.position == Position.REST_POSITION:
+                    robot_action_prob = 1
+                else:
+                    return 0
+            # If robot is at the belt and not holding a box
+            else:
+                index = belt_to_index(current_state.robot.position)
+                # No box at belt location:
+                if current_state.belt[index] == 0:
+                    if resultant_state.robot.position == Position.REST_POSITION:
+                        robot_action_prob = 1
+                    else:
+                        return 0
+                # Box at robot's location:
+                else:
+                    if resultant_state.robot.position == current_state.robot.position \
+                            and resultant_state.robot.holding_box == True \
+                            and resultant_state.belt[index] == 0:
+                        robot_action_prob = 1
+                        boxes_removed.add(index)
+                    else:
+                        return 0
+
+
+        # Update boxes:
+        expected_belt = current_state.belt.copy()
+        # Remove the boxes:
+        for index in boxes_removed:
+            expected_belt[index] = 0
+        # Shift belt to the left:
+        for i in range(len(expected_belt) - 1):
+            expected_belt[i] = expected_belt[i+1]
+        expected_belt[-1] = 0
+
+        if not expected_belt == resultant_state.belt:
+            return 0
+
+        # Finally, return total probability of achieving resultant_state:
+        return tiredness_prob * human_action_prob * robot_action_prob
+
+
+
 
     def sample(self, current_state, action):
 
