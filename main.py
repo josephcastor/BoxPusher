@@ -1,4 +1,5 @@
-
+import random
+import numpy as np
 
 # Fixed positions
 #C1...CN
@@ -278,6 +279,7 @@ class Transition():
                 else:
                     return 0
 
+        # ROBOT:
         # Calculating probability of robot action resulting in the resultant state
         robot_action_prob = 0
         if robot_action == AtomicAction.REST:
@@ -363,7 +365,7 @@ class Transition():
             else:
                 index = belt_to_index(current_state.robot.position)
                 # No box at belt location:
-                if current_state.belt[index] == 0:
+                if current_state.belt[index] == 0 or resultant_state.human.position:
                     if resultant_state.robot.position == Position.REST_POSITION:
                         robot_action_prob = 1
                     else:
@@ -418,38 +420,153 @@ class Transition():
 
 
     def sample(self, current_state, action):
-
-        # Generate number between 0 and 1
-
-        robot_action = action.robot_action
         human_action = action.human_action
+        human_rest_prob = current_state.human.tiredness / 10
 
-        # Apply the human action to the current state (deterministic)
-        next_human_state = apply_human_action(current_state)
+        resultant_state = current_state.copy()
+        if human_action == AtomicAction.REST:
+            resultant_state.human.position = Position.REST_POSITION
+        elif human_action == AtomicAction.GOTO_DROPOFF:
+            rand = random.Random()
+            if rand <= human_rest_prob:
+                resultant_state.human.position = Position.REST_POSITION
+            else:
+                resultant_state.human.position = Position.DROP_OFF
 
-        # Sample next robot state based on underlying distribution
+        elif human_action == AtomicAction.PUTDOWN:
+            if not (current_state.human.holding_box and current_state.human.position == Position.DROP_OFF):
+                resultant_state.human.position = Position.REST_POSITION
+            else:
+                rand = random.Random()
+                if rand <= human_rest_prob:
+                    resultant_state.human.position = Position.REST_POSITION
+                else:
+                    resultant_state.human.position = Position.DROP_OFF
+                    resultant_state.human.holding_box = False
+                    resultant_state.packed += 1
 
-        # Generate no. between 0 and 1
+        elif human_action == AtomicAction.PICKUP:
+            if not (current_state.human.position in belt_positions and not current_state.human.holding_box):
+                resultant_state.human.position = Position.REST_POSITION
+            else:
+                index = belt_to_index(current_state.human.position)
+                if current_state.belt[index] == 0:
+                    resultant_state.human.position = Position.REST_POSITION
+                else:
+                    resultant_state.human.holding_box = True
+                    resultant_state.belt[index] = 0
 
-        # If action is a movement
+        elif human_action in go_to_belt_actions:
+            rand = random.Random()
+            if rand <= human_rest_prob:
+                resultant_state.human.position = Position.REST_POSITION
+            else:
+                if human_action == AtomicAction.GOTO_P1:
+                    intended = 1
+                elif human_action == AtomicAction.GOTO_P2:
+                    intended = 2
+                elif human_action == AtomicAction.GOTO_P3:
+                    intended = 3
+                elif human_action == AtomicAction.GOTO_P4:
+                    intended = 4
+                else:
+                    intended = 5
 
-            # If no. <= 0.2
-            future_robot_state = current_robot_state
-
-            # If > 0.8, return same robo
-            future_robot_state = get_intended(...)
-
-        # If action is a pickup or putdown
-
-        future_robot_state = apply_pickupputdown(current-robot_state)
-
-        return combination of future robot andf future human
 
 
-    def apply_human_action(current_state, human_action):
+                bias_difference = current_state.human.lr_bias - intended
 
-        if is_movement_action[human_action]
+                if bias_difference == 0:
+                    resultant_state.human.position = belt_positions[intended]
+                elif bias_difference > 0:
+                    probs = dict()
+                    for i in range(intended, current_state.human.lr_bias + 1):
+                        prob = 0.0
+                        if i == intended:
+                            prob += 0.5
+                        prob += 0.5*(1 / abs(bias_difference) + 1)
+                        probs[i] = prob
+                    rand = random.Random()
+                    resultant_state.human.position = belt_positions[np.random.choice(list(probs.keys()), list(probs.values()))]
+                elif bias_difference < 0:
+                    probs = dict()
+                    for i in range(current_state.human.lr_bias, intended + 1):
+                        prob = 0.0
+                        if i == intended:
+                            prob += 0.5
+                        prob += 0.5 * (1 / abs(bias_difference) + 1)
+                        probs[i] = prob
+                    rand = random.Random()
+                    resultant_state.human.position = belt_positions[np.random.choice(list(probs.keys()), list(probs.values()))]
 
+
+        # ROBOT TIME:
+        robot_action = action.robot_action
+        if robot_action == AtomicAction.REST:
+            resultant_state.robot.position = Position.REST_POSITION
+        elif robot_action == AtomicAction.GOTO_DROPOFF:
+            if resultant_state.human.position == Position.DROP_OFF:
+                resultant_state.robot.position = Position.REST_POSITION
+            else:
+                resultant_state.robot.position = Position.DROP_OFF
+
+        elif robot_action == AtomicAction.PICKUP:
+            if not (current_state.robot.position in belt_positions and not current_state.robot.holding_box):
+                resultant_state.robot.position = Position.REST_POSITION
+            else:
+                index = belt_to_index(current_state.robot.position)
+                # No box at belt location:
+                if current_state.belt[index] == 0 or resultant_state.human.position == belt_positions[index]:
+                    resultant_state.robot.position = Position.REST_POSITION
+                else:
+                    resultant_state.robot.holding_box = True
+                    resultant_state.belt[index] = 0
+
+        elif robot_action == AtomicAction.PUTDOWN:
+            if not (current_state.robot.holding_box and current_state.robot.position == Position.DROP_OFF) \
+                    or resultant_state.human.position == Position.DROP_OFF:
+                resultant_state.robot.position = Position.REST_POSITION
+            else:
+                resultant_state.robot.holding_box = False
+                resultant_state.packed += 1
+
+        elif robot_action in go_to_belt_actions:
+            index = go_to_belt_actions.index(robot_action)
+            rand = random.Random()
+            if index == 0:
+                if rand <= 0.9:
+                    resultant_state.robot.position = belt_positions[index]
+                else:
+                    resultant_state.robot.position = belt_positions[index + 1]
+            elif index == len(belt_positions) - 1:
+                if rand <= 0.9:
+                    resultant_state.robot.position = belt_positions[index]
+                else:
+                    resultant_state.robot.position = belt_positions[index - 1]
+            else:
+                if rand <= 0.8:
+                    resultant_state.robot.position = belt_positions[index]
+                elif rand <= 0.9:
+                    resultant_state.robot.position = belt_positions[index - 1]
+                else:
+                    resultant_state.robot.position = belt_positions[index + 1]
+
+        # Ensuring the missed count has been updated correctly:
+        if resultant_state.belt[0] == 1:
+            # New missed package:
+            resultant_state.missed += 1
+
+        # Shift belt to the left:
+        for i in range(len(resultant_state.belt) - 1):
+            resultant_state.belt[i] = resultant_state.belt[i + 1]
+        resultant_state.belt[-1] = 0
+
+        return resultant_state
+
+
+
+
+    
 
 
 
