@@ -1,6 +1,7 @@
 import random
 import numpy as np
 from scipy.stats import norm
+import pomdp_py
 
 # Fixed positions
 #C1...CN
@@ -32,7 +33,6 @@ def belt_to_index(position):
         return 5
 
 total_belt_positions = 5
-
 
 
 class Human():
@@ -78,7 +78,7 @@ class Robot():
         pass
 
 
-class State():
+class State(pomdp_py.State):
     def __init__(self, human, robot, belt, packed, missed):
         self.human = human
         self.robot = robot
@@ -107,7 +107,7 @@ class State():
 
 # In transition fn, update tiredness if we rested previously
 
-class Action():
+class Action(pomdp_py.Action):
     def __init__(self, human_action, robot_action):
         self.human_action = human_action
         self.robot_action = robot_action
@@ -126,7 +126,7 @@ go_to_belt_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.G
 
 # TODO:
 # Make observation match the structure of State
-class Observation():
+class Observation(pomdp_py.Observation):
 
     def __init__(self, tiredness, lr_bias):
         self.tiredness = tiredness
@@ -141,7 +141,7 @@ class Observation():
                 and self.lr_bias == other.lr_bias
         return False
 
-class Transition():
+class TransitionModel(pomdp_py.TransitionModel):
     def __init__(self, gridmap):
         self.gridmap = gridmap
 
@@ -419,8 +419,6 @@ class Transition():
         return tiredness_prob * human_action_prob * robot_action_prob
 
 
-
-
     def sample(self, current_state, action):
         human_action = action.human_action
         human_rest_prob = current_state.human.tiredness / 10
@@ -474,8 +472,6 @@ class Transition():
                 else:
                     intended = 5
 
-
-
                 bias_difference = current_state.human.lr_bias - intended
 
                 if bias_difference == 0:
@@ -500,7 +496,6 @@ class Transition():
                         probs[i] = prob
                     rand = random.Random()
                     resultant_state.human.position = belt_positions[np.random.choice(list(probs.keys()), list(probs.values()))]
-
 
         # ROBOT TIME:
         robot_action = action.robot_action
@@ -565,13 +560,6 @@ class Transition():
 
         return resultant_state
 
-
-
-
-    
-
-
-
     def get_intended(self, robot_position, action):
         if action == AtomicAction.UP:
             if robot_position[1] != self.gridmap.rows - 1:
@@ -621,7 +609,7 @@ class Transition():
 
 # Observation FN
 
-class ObservationModel():
+class ObservationModel(pomdp_py.ObservationModel):
 
     def __init(self):
 
@@ -656,29 +644,26 @@ class ObservationModel():
     #     tiredness_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in tiredness_candidate]
     #     lr_bias_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in lr_bias_candidates]
 
-    class PolicyModel():
+class PolicyModel(pomdp_py.RolloutPolicy):
 
-        def __init__(self):
+    ACTIONS = [Action(a1,a2) for a1 in range(0,9) for a2 in range(0,9)]
+        
+    def rollout(self, state):
 
-        ACTIONS = [Action(a1,a2) for a1 in range(0,9) for a2 in range(0,9)]
-        def rollout(self, state):
+        return random.sample(self.get_all_actions(), 1)
 
-            return random.sample(self.get_all_actions(), 1)
-
-        def get_all_actions(self):
-            return self.ACTIONS\
+    def get_all_actions(self):
+        return self.ACTIONS\
 
     
-    class RewardModel():
+class RewardModel(pomdp_py.RewardModel):
 
-        def __init__(self):
+    def reward(state,action):
+        # random for no
+        return 1
 
-        def reward(state,action):
-            # random for no
-            return 1
-
-        def sample(self, state, action, next_state):
-            return self.reward(state, action)
+    def sample(self, state, action, next_state):
+        return self.reward(state, action)
 
 
 # Generate initial state
@@ -687,15 +672,12 @@ class ObservationModel():
 # 
 #  
 # 5 by 5 space 
-human = Human(Position.PICKUP_1,False, 1, 3)
-robot = Robot(Position.REST, False)
-initial_state = State(human, robot, [0,1,0,0,0], 0,0)
-initial_belief = [State(human, robot, [0,1,0,0,0], 0,0) for _ in range(1000)]
+
 
 class Problem():
 
     def __init__(self, init_true_state, init_belief):
-        agent = pomdp_py(Agent(init_belief,
+        agent = pomdp_py(pomdp_py.Agent(init_belief,
                                 PolicyModel(),
                                 TransitionModel(),
                                 ObservationModel(),
@@ -703,11 +685,77 @@ class Problem():
         env = pomdp_py.Environment(init_true_state,
                                     TransitionModel(),
                                     RewardModel())
-        super
+        super().__init__(agent, env, name="Problem")
 
 
+human = Human(Position.PICKUP_1,False, 1, 3)
+robot = Robot(Position.REST, False)
+init_true_state = State(human, robot, [0,1,0,0,0], 0,0)
+init_belief = pomdp_py.Histogram({State(human, robot, [0,1,0,0,0], 0,0): 0.5,
+                                  State(human, robot, [0,1,0,0,0], 0,0): 0.5})
 
+prob = Problem(init_true_state, init_belief)
 
+# Step 1; in main()
+# creating planners
+pomcp = pomdp_py.POMCP(max_depth=3, discount_factor=0.95,
+                       planning_time=.5, exploration_const=110,
+                       rollout_policy=prob.agent.policy_model)
+
+# Steps 2-6; called in main()
+def test_planner(tiger_problem, planner, nsteps=3):
+   """Runs the action-feedback loop of Tiger problem POMDP"""
+    for i in range(nsteps):  # Step 6
+        # Step 2
+        action = planner.plan(tiger_problem.agent)
+
+        print("==== Step %d ====" % (i+1))
+        print("True state:", tiger_problem.env.state)
+        print("Belief:", tiger_problem.agent.cur_belief)
+        print("Action:", action)
+        # Step 3; There is no state transition for the tiger domain.
+        # In general, the ennvironment state can be transitioned
+        # using
+        #
+        #   reward = tiger_problem.env.state_transition(action, execute=True)
+        #
+        # Or, it is possible that you don't have control
+        # over the environment change (e.g. robot acting
+        # in real world); In that case, you could skip
+        # the state transition and re-estimate the state
+        # (e.g. through the perception stack on the robot).
+        reward = tiger_problem.env.reward_model.sample(tiger_problem.env.state, action, None)
+        print("Reward:", reward)
+
+        # Step 4
+        # Let's create some simulated real observation;
+        # Here, we use observation based on true state for sanity
+        # checking solver behavior. In general, this observation
+        # should be sampled from agent's observation model, as
+        #
+        #    real_observation = tiger_problem.agent.observation_model.sample(tiger_problem.env.state, action)
+        #
+        # or coming from an external source (e.g. robot sensor
+        # reading). Note that tiger_problem.env.state should store
+        # the environment state after transition.
+        real_observation = Observation(tiger_problem.env.state.name)
+        print(">> Observation: %s" % real_observation)
+
+        # Step 5
+        # Update the belief. If the planner is POMCP, planner.update
+        # also automatically updates agent belief.
+        tiger_problem.agent.update_history(action, real_observation)
+        planner.update(tiger_problem.agent, action, real_observation)
+        if isinstance(planner, pomdp_py.POUCT):
+            print("Num sims: %d" % planner.last_num_sims)
+        if isinstance(tiger_problem.agent.cur_belief, pomdp_py.Histogram):
+            new_belief = pomdp_py.update_histogram_belief(tiger_problem.agent.cur_belief,
+                                                          action, real_observation,
+                                                          tiger_problem.agent.observation_model,
+                                                          tiger_problem.agent.transition_model)
+            tiger_problem.agent.set_belief(new_belief)
+
+test_planner(prob, pomcp, 3)
 
 
 
