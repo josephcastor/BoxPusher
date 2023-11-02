@@ -1,8 +1,7 @@
 import random
 import numpy as np
 from scipy.stats import norm
-import pomdp_py
-
+import sys
 # Fixed positions
 #C1...CN
 #REST
@@ -43,11 +42,11 @@ class Human():
         self.lr_bias = lr_bias
 
     def __hash__(self):
-        return hash((self.position, 
+        return hash((self.position,
                      self.holding_box,
                      self.tiredness,
                      self.lr_bias))
-    
+
     def __eq__(self, other):
         if isinstance(other, Human):
             return self.position == other.position\
@@ -55,7 +54,7 @@ class Human():
                 and self.tiredness == other.tiredness\
                 and self.lr_bias == other.lr_bias
         return False
-    
+
     def __str__(self):
         pass
 
@@ -65,15 +64,15 @@ class Robot():
         self.holding_box = holding_box
 
     def __hash__(self):
-        return hash((self.position, 
+        return hash((self.position,
                      self.holding_box))
-    
+
     def __eq__(self, other):
         if isinstance(other, Human):
             return self.position == other.position\
                 and self.holding_box == other.holding_box
         return False
-    
+
     def __str__(self):
         pass
 
@@ -83,16 +82,16 @@ class State(pomdp_py.State):
         self.human = human
         self.robot = robot
         self.belt = belt
-        self.packed = packed # count of packed packages 
+        self.packed = packed # count of packed packages
         self.missed = missed # count of missed missed
 
     def __hash__(self):
-        return hash((self.human, 
+        return hash((self.human,
                      self.robot,
                      self.belt,
                      self.packed,
                      self.missed))
-    
+
     def __eq__(self, other):
         if isinstance(other, State):
             return self.human == other.human\
@@ -101,7 +100,7 @@ class State(pomdp_py.State):
                 and self.packed == self.packed\
                 and self.missed == other.missed
         return False
-    
+
     def __str__(self):
         pass
 
@@ -243,28 +242,28 @@ class TransitionModel(pomdp_py.TransitionModel):
                 human_action_prob = (1 - current_state.human.tiredness) / 10
 
                 if human_action == AtomicAction.GOTO_P1:
-                    intended = 1
+                    intended = 0
                 elif human_action == AtomicAction.GOTO_P2:
-                    intended = 2
+                    intended = 1
                 elif human_action == AtomicAction.GOTO_P3:
-                    intended = 3
+                    intended = 2
                 elif human_action == AtomicAction.GOTO_P4:
-                    intended = 4
+                    intended = 3
                 else:
-                    intended = 5
+                    intended = 4
 
                 bias_difference = current_state.human.lr_bias - intended
 
                 if resultant_state.human.position == Position.PICKUP_1:
-                    gap = 1 - intended
+                    gap = 0 - intended
                 elif resultant_state.human.position == Position.PICKUP_2:
-                    gap = 2 - intended
+                    gap = 1 - intended
                 elif resultant_state.human.position == Position.PICKUP_3:
-                    gap = 3 - intended
+                    gap = 2 - intended
                 elif resultant_state.human.position == Position.PICKUP_4:
-                    gap = 4 - intended
+                    gap = 3 - intended
                 elif resultant_state.human.position == Position.PICKUP_5:
-                    gap = 5 - intended
+                    gap = 4 - intended
                 else:
                     return 0  # Did not end up in pickup or rest locations
 
@@ -637,7 +636,7 @@ class ObservationModel(pomdp_py.ObservationModel):
 
     #     tiredness_candidates = [observation.tiredness -2,observation.tiredness -1, observation.tiredness, observation.tiredness +1, observation.tiredness + 2  ]
     #     lr_bias_candidates = [observation.lr_bias - 1 , observation.lr_bias  ,observation.lr_bias + 1 ]
-        
+
     #     tiredness_candidates = [v for v in tiredness_candidates if v>=1 and v<=10]
     #     lr_bias_candidates = [v for v in lr_bias_candidates if v>=1 and v<=5]
 
@@ -647,7 +646,7 @@ class ObservationModel(pomdp_py.ObservationModel):
 class PolicyModel(pomdp_py.RolloutPolicy):
 
     ACTIONS = [Action(a1,a2) for a1 in range(0,9) for a2 in range(0,9)]
-        
+
     def rollout(self, state):
 
         return random.sample(self.get_all_actions(), 1)
@@ -655,10 +654,10 @@ class PolicyModel(pomdp_py.RolloutPolicy):
     def get_all_actions(self):
         return self.ACTIONS\
 
-    
+
 class RewardModel(pomdp_py.RewardModel):
 
-    def reward(state,action):
+    def reward(self, state,action):
         # random for no
         return 1
 
@@ -667,11 +666,11 @@ class RewardModel(pomdp_py.RewardModel):
 
 
 # Generate initial state
-# 
+#
 # Generate initial belief
-# 
-#  
-# 5 by 5 space 
+#
+#
+# 5 by 5 space
 
 
 class Problem():
