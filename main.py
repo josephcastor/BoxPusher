@@ -621,8 +621,11 @@ class Transition():
 
 # Observation FN
 
+class ObservationModel():
 
-    def sample_observation(self, next_state, action):
+    def __init(self):
+
+    def sample(self, next_state, action):
 
         next_tiredness = next_state.human.tiredness
         next_lr_bias = next_state.human.lr_bias
@@ -637,7 +640,6 @@ class Transition():
         next_lr_bias = max(min(5,next_lr_bias),0)
 
         return Observation(next_tiredness, next_lr_bias)
-
 
     # def observation_probability(self, observation, next_state,action):
 
@@ -654,13 +656,55 @@ class Transition():
     #     tiredness_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in tiredness_candidate]
     #     lr_bias_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in lr_bias_candidates]
 
-    ACTIONS = [Action(a1,a2) for a1 in range(0,9) for a2 in range(0,9)]
-    def rollout(self, state):
+    class PolicyModel():
 
-        return random.sample(self.get_all_actions(), 1)
+        def __init__(self):
 
-    def get_all_actions(self):
-        return self.ACTIONS
+        ACTIONS = [Action(a1,a2) for a1 in range(0,9) for a2 in range(0,9)]
+        def rollout(self, state):
+
+            return random.sample(self.get_all_actions(), 1)
+
+        def get_all_actions(self):
+            return self.ACTIONS\
+
+    
+    class RewardModel():
+
+        def __init__(self):
+
+        def reward(state,action):
+            # random for no
+            return 1
+
+        def sample(self, state, action, next_state):
+            return self.reward(state, action)
+
+
+# Generate initial state
+# 
+# Generate initial belief
+# 
+#  
+# 5 by 5 space 
+human = Human(Position.PICKUP_1,False, 1, 3)
+robot = Robot(Position.REST, False)
+initial_state = State(human, robot, [0,1,0,0,0], 0,0)
+initial_belief = [State(human, robot, [0,1,0,0,0], 0,0) for _ in range(1000)]
+
+class Problem():
+
+    def __init__(self, init_true_state, init_belief):
+        agent = pomdp_py(Agent(init_belief,
+                                PolicyModel(),
+                                TransitionModel(),
+                                ObservationModel(),
+                                RewardModel()))
+        env = pomdp_py.Environment(init_true_state,
+                                    TransitionModel(),
+                                    RewardModel())
+        super
+
 
 
 
