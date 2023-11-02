@@ -1,5 +1,6 @@
 import random
 import numpy as np
+from scipy.stats import norm
 
 # Fixed positions
 #C1...CN
@@ -104,6 +105,7 @@ class State():
     def __str__(self):
         pass
 
+# In transition fn, update tiredness if we rested previously
 
 class Action():
     def __init__(self, human_action, robot_action):
@@ -619,7 +621,57 @@ class Transition():
 
 # Observation FN
 
-P(o | s', a)
+
+    def sample_observation(self, next_state, action):
+
+        next_tiredness = next_state.human.tiredness
+        next_lr_bias = next_state.human.lr_bias
+
+        next_tiredness += np.random.normal(0, 0.5)
+        next_tiredness = int(round(next_tiredness))
+        next_tiredness = max(min(10,next_tiredness),0)
+
+
+        next_lr_bias += np.random.normal(0, 0.25)
+        next_lr_bias = int(round(next_lr_bias))
+        next_lr_bias = max(min(5,next_lr_bias),0)
+
+        return Observation(next_tiredness, next_lr_bias)
+
+
+    # def observation_probability(self, observation, next_state,action):
+
+    #     next_tiredness = next_state.human.tiredness
+    #     next_lr_bias = next_state.human.lr_bias
+
+
+    #     tiredness_candidates = [observation.tiredness -2,observation.tiredness -1, observation.tiredness, observation.tiredness +1, observation.tiredness + 2  ]
+    #     lr_bias_candidates = [observation.lr_bias - 1 , observation.lr_bias  ,observation.lr_bias + 1 ]
+        
+    #     tiredness_candidates = [v for v in tiredness_candidates if v>=1 and v<=10]
+    #     lr_bias_candidates = [v for v in lr_bias_candidates if v>=1 and v<=5]
+
+    #     tiredness_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in tiredness_candidate]
+    #     lr_bias_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in lr_bias_candidates]
+
+    ACTIONS = [Action(a1,a2) for a1 in range(0,9) for a2 in range(0,9)]
+    def rollout(self, state):
+
+        return random.sample(self.get_all_actions(), 1)
+
+    def get_all_actions(self):
+        return self.ACTIONS
+
+
+
+
+
+
+        
+
+
+
+# P(o | s', a)
   
   # Only want PO in terms of robot's perception of human characteristics
 
