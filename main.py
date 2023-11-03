@@ -2,6 +2,7 @@ import random
 import numpy as np
 import pomdp_py
 import copy
+from pomdp_py.utils import TreeDebugger
 # Fixed positions
 #C1...CN
 #REST
@@ -504,11 +505,9 @@ class TransitionModel(pomdp_py.TransitionModel):
                         probs.append((i, prob))
                     rand = np.random.rand()
 
-                    
-                    # for i in range(len(probs) - 1):
-
-                    #     if rand <= probs[i][1]:
-                    #         resultant_state.human.position = belt_positions[probs[i][0]]
+                    for i in range(len(probs) - 1):
+                        if rand <= probs[i][1]:
+                            resultant_state.human.position = belt_positions[probs[i][0]]
 
 
                 elif bias_difference < 0:
@@ -522,12 +521,10 @@ class TransitionModel(pomdp_py.TransitionModel):
                     rand = np.random.rand()
 
                     for i in range(len(probs)):
-
                         if rand <= probs[i][1]:
                             resultant_state.human.position = belt_positions[probs[i][0]]
 
-                    # resultant_state.human.position = belt_positions[np.random.choice(list(probs.keys()),size=1, p=list(probs.values()))]
-                    # resultant_state.human.position = belt_positions[random.choice()]
+
 
         # ROBOT TIME:
         robot_action = action.robot_action
@@ -656,7 +653,7 @@ class ObservationModel(pomdp_py.ObservationModel):
 
         next_lr_bias += np.random.normal(0, 0.1)
         next_lr_bias = int(round(next_lr_bias))
-        next_lr_bias = max(min(5,next_lr_bias),0)
+        next_lr_bias = max(min(4,next_lr_bias),0)
 
         human = copy.copy(next_state.human)
         human.tiredness = next_tiredness
@@ -672,20 +669,29 @@ class ObservationModel(pomdp_py.ObservationModel):
         # human
         return Observation(human, next_state.robot, next_state.belt, next_state.packed, next_state.missed, next_state.name)
 
-    # def observation_probability(self, observation, next_state,action):
 
-    #     next_tiredness = next_state.human.tiredness
-    #     next_lr_bias = next_state.human.lr_bias
+    def observation_probability(self, observation, next_state, action):
+        print("yo")
 
+        if observation.human.tiredness == next_state.human.tiredness and\
+                observation.human.lr_bias == next_state.human.lr_bias:
+            return 1
+        else:
+            return 0
 
-    #     tiredness_candidates = [observation.tiredness -2,observation.tiredness -1, observation.tiredness, observation.tiredness +1, observation.tiredness + 2  ]
-    #     lr_bias_candidates = [observation.lr_bias - 1 , observation.lr_bias  ,observation.lr_bias + 1 ]
+        # next_tiredness = next_state.human.tiredness
+        # next_lr_bias = next_state.human.lr_bias
+        #
+        #
+        # tiredness_candidates = [observation.tiredness -2,observation.tiredness -1, observation.tiredness, observation.tiredness +1, observation.tiredness + 2  ]
+        # lr_bias_candidates = [observation.lr_bias - 1 , observation.lr_bias  ,observation.lr_bias + 1 ]
+        #
+        # tiredness_candidates = [v for v in tiredness_candidates if v>=1 and v<=10]
+        # lr_bias_candidates = [v for v in lr_bias_candidates if v>=1 and v<=5]
+        #
+        # tiredness_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in tiredness_candidate]
+        # lr_bias_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in lr_bias_candidates]
 
-    #     tiredness_candidates = [v for v in tiredness_candidates if v>=1 and v<=10]
-    #     lr_bias_candidates = [v for v in lr_bias_candidates if v>=1 and v<=5]
-
-    #     tiredness_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in tiredness_candidate]
-    #     lr_bias_p = [ norm.pdf(next_tiredness, candidate , 0.5) for candidate in lr_bias_candidates]
 
 class PolicyModel(pomdp_py.RolloutPolicy):
 
@@ -730,13 +736,24 @@ class Problem(pomdp_py.POMDP):
 
 
 human1 = Human(Position.PICKUP_1,False, 1, 3)
-human2 = Human(Position.PICKUP_1,False, 5, 7)
+human2 = Human(Position.PICKUP_1,False, 1, 4)
 robot = Robot(Position.REST_POSITION, False)
 init_true_state = State(human1, robot, np.array([0,1,0,0,0]), 0,0, "whatevs")
+particle_1 = State(human1, robot, np.array([0,1,0,0,0]), 0,0, "whatevs")
+particle_2 = State(human2, robot, np.array([0,1,0,0,0]), 0,0, "w")
 # init_belief = pomdp_py.Histogram({State(human, robot, np.array([0,1,0,0,0]), 0,0): 0.5,
 #                                   State(human, robot, np.array([0,1,0,0,0]), 0,0): 0.5})
 
-init_belief = pomdp_py.Particles([State(human1, robot, np.array([0,1,0,0,0]), 0,0, "whatevs1"), State(human2, robot, np.array([0,1,0,0,0]), 0,0, "whatevs2")])
+particles = []
+for i in range(1000):
+    s = random.sample([particle_1, particle_2], 1)[0]
+    particles.append(s)
+
+init_belief = pomdp_py.Particles(particles)
+
+
+# init_belief = pomdp_py.Particles([State(human1, robot, np.array([0,1,0,0,0]), 0,0, "whatevs1"), State(human2, robot, np.array([0,1,0,0,0]), 0,0, "whatevs2")])
+
 
 prob = Problem(init_true_state, init_belief)
 
@@ -788,6 +805,7 @@ def test_planner(tiger_problem, planner, nsteps=10):
         # Step 5
         # Update the belief. If the planner is POMCP, planner.update
         # also automatically updates agent belief.
+        print("idk")
         tiger_problem.agent.update_history(action, real_observation)
         planner.update(tiger_problem.agent, action, real_observation)
         if isinstance(planner, pomdp_py.POUCT):
@@ -799,7 +817,14 @@ def test_planner(tiger_problem, planner, nsteps=10):
                                                           tiger_problem.agent.transition_model)
             tiger_problem.agent.set_belief(new_belief)
 
-test_planner(prob, pomcp, 10)
+
+
+# test_planner(prob, pomcp, 10)
+agent = prob.agent
+
+action = pomcp.plan(agent)
+dd = TreeDebugger(agent.tree)
+import pdb; pdb.set_trace()
 
 
 
