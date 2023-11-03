@@ -33,7 +33,6 @@ def belt_to_index(position):
 
 total_belt_positions = 5
 
-
 class Human():
     def __init__(self, position, holding_box, tiredness, lr_bias):
         self.position = position
@@ -56,7 +55,7 @@ class Human():
         return False
 
     def __str__(self):
-        return "this is an human"
+        return f"Human(position={self.position}, holding_box={self.holding_box}, tiredness={self.tiredness}, lr_bias={self.lr_bias})"
 
 class Robot():
     def __init__(self, position, holding_box):
@@ -74,7 +73,7 @@ class Robot():
         return False
 
     def __str__(self):
-        return "f"
+        return f"Robot(position={self.position}, holding_box={self.holding_box})"
 
 
 class State(pomdp_py.State):
@@ -103,7 +102,7 @@ class State(pomdp_py.State):
         return False
 
     def __str__(self):
-        return "hello"
+        return f"State(human={self.human}, robot={self.robot}, belt={self.belt}, packed={self.packed}, missed={self.packed})"
 
 # In transition fn, update tiredness if we rested previously
 
@@ -123,7 +122,7 @@ class Action(pomdp_py.Action):
         return False
 
     def __str__(self):
-        return "this is an action"
+        return f"Action(human_action={self.human_action}, robot_action={self.robot_action})"
 
 class AtomicAction():
     GOTO_P1 = 0
@@ -142,23 +141,36 @@ go_to_belt_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.G
 # Make observation match the structure of State
 class Observation(pomdp_py.Observation):
 
-    def __init__(self, tiredness, lr_bias):
-        self.tiredness = tiredness
-        self.lr_bias = lr_bias
+    def __init__(self, human, robot, belt, packed, missed, name):
+        self.human = human
+        self.robot = robot
+        self.belt = belt
+        self.packed = packed # count of packed packages
+        self.missed = missed # count of missed missed
+        self.name = name
 
     def __hash__(self):
-        return hash((self.tiredness, self.lr_bias))
+        return hash((self.human,
+                     self.robot,
+                     tuple(self.belt.tolist()),
+                     self.packed,
+                     self.missed))
 
     def __eq__(self, other):
         if isinstance(other, Observation):
-            return self.tiredness == other.tiredness\
-                and self.lr_bias == other.lr_bias
+            return self.human == other.human\
+                and self.robot == other.robot\
+                and self.belt == other.belt\
+                and self.packed == other.packed\
+                and self.missed == other.missed\
+                and self.name == other.name
         return False
 
 class TransitionModel(pomdp_py.TransitionModel):
 
 
     def probability(self, current_state, resultant_state, action):
+    
         robot_action = action.robot_action
         human_action = action.human_action
 
@@ -246,7 +258,6 @@ class TransitionModel(pomdp_py.TransitionModel):
                         boxes_removed.add(index)
                     else:
                         return 0
-
 
         elif human_action in go_to_belt_actions:
             if resultant_state.human.position == Position.REST_POSITION:
@@ -435,7 +446,8 @@ class TransitionModel(pomdp_py.TransitionModel):
         human_action = action.human_action
         human_rest_prob = current_state.human.tiredness / 10
 
-        resultant_state = copy.copy(current_state)
+        resultant_state = State(current_state.human, current_state.robot, current_state.belt, current_state.packed, current_state.missed, current_state.name)
+        
         if human_action == AtomicAction.REST:
             resultant_state.human.position = Position.REST_POSITION
         elif human_action == AtomicAction.GOTO_DROPOFF:
@@ -499,10 +511,10 @@ class TransitionModel(pomdp_py.TransitionModel):
                     rand = np.random.rand()
 
                     
-                    for i in range(len(probs)):
+                    # for i in range(len(probs) - 1):
 
-                        if rand <= probs[i][1]:
-                            resultant_state.human.position = belt_positions[probs[i][0]]
+                    #     if rand <= probs[i][1]:
+                    #         resultant_state.human.position = belt_positions[probs[i][0]]
 
 
                 elif bias_difference < 0:
@@ -579,10 +591,13 @@ class TransitionModel(pomdp_py.TransitionModel):
             # New missed package:
             resultant_state.missed += 1
 
+        # print(resultant_state.belt)
         # Shift belt to the left:
         for i in range(len(resultant_state.belt) - 1):
             resultant_state.belt[i] = resultant_state.belt[i + 1]
         resultant_state.belt[-1] = 0
+
+        # print(resultant_state.belt)
 
         return resultant_state
 
@@ -613,7 +628,7 @@ class TransitionModel(pomdp_py.TransitionModel):
                 return robot_position
 
 
-
+        
 
 
 
@@ -631,8 +646,6 @@ class TransitionModel(pomdp_py.TransitionModel):
         # Human
 
 
-
-
 # Observation FN
 
 class ObservationModel(pomdp_py.ObservationModel):
@@ -642,16 +655,28 @@ class ObservationModel(pomdp_py.ObservationModel):
         next_tiredness = next_state.human.tiredness
         next_lr_bias = next_state.human.lr_bias
 
-        next_tiredness += np.random.normal(0, 0.5)
+        next_tiredness += np.random.normal(0, 0.1)
         next_tiredness = int(round(next_tiredness))
         next_tiredness = max(min(10,next_tiredness),0)
 
 
-        next_lr_bias += np.random.normal(0, 0.25)
+        next_lr_bias += np.random.normal(0, 0.1)
         next_lr_bias = int(round(next_lr_bias))
         next_lr_bias = max(min(5,next_lr_bias),0)
 
-        return Observation(next_tiredness, next_lr_bias)
+        human = copy.copy(next_state.human)
+        human.tiredness = next_tiredness
+        human.lr_bias = next_lr_bias
+
+        print("True human tiredness: ", next_state.human.tiredness)
+        print("Observed human tiredness: ", human.tiredness)
+
+        print("True human lr_bias: ", next_state.human.lr_bias)
+        print("Observed human lr_bias: ", human.lr_bias)
+
+
+        # human
+        return Observation(human, next_state.robot, next_state.belt, next_state.packed, next_state.missed, next_state.name)
 
     # def observation_probability(self, observation, next_state,action):
 
@@ -710,13 +735,14 @@ class Problem(pomdp_py.POMDP):
         super().__init__(agent, env, name="Problem")
 
 
-human = Human(Position.PICKUP_1,False, 1, 3)
+human1 = Human(Position.PICKUP_1,False, 1, 3)
+human2 = Human(Position.PICKUP_1,False, 5, 7)
 robot = Robot(Position.REST_POSITION, False)
-init_true_state = State(human, robot, [0,1,0,0,0], 0,0, "whatevs")
+init_true_state = State(human1, robot, np.array([0,1,0,0,0]), 0,0, "whatevs")
 # init_belief = pomdp_py.Histogram({State(human, robot, np.array([0,1,0,0,0]), 0,0): 0.5,
 #                                   State(human, robot, np.array([0,1,0,0,0]), 0,0): 0.5})
 
-init_belief = pomdp_py.Particles([State(human, robot, np.array([0,1,0,0,0]), 0,0, "whatevs"), State(human, robot, np.array([0,1,0,0,0]), 0,0, "whatevs")])
+init_belief = pomdp_py.Particles([State(human1, robot, np.array([0,1,0,0,0]), 0,0, "whatevs1"), State(human2, robot, np.array([0,1,0,0,0]), 0,0, "whatevs2")])
 
 prob = Problem(init_true_state, init_belief)
 
@@ -727,7 +753,7 @@ pomcp = pomdp_py.POMCP(max_depth=3, discount_factor=0.95,
                        rollout_policy=prob.agent.policy_model)
 
 # Steps 2-6; called in main()
-def test_planner(tiger_problem, planner, nsteps=3):
+def test_planner(tiger_problem, planner, nsteps=10):
     """Runs the action-feedback loop of Tiger problem POMDP"""
     for i in range(nsteps):  # Step 6
         # Step 2
@@ -735,7 +761,7 @@ def test_planner(tiger_problem, planner, nsteps=3):
 
         print("==== Step %d ====" % (i+1))
         print("True state:", tiger_problem.env.state)
-        print("Belief:", tiger_problem.agent.cur_belief)
+        # print("Belief:", tiger_problem.agent.cur_belief)
         print("Action:", action)
         # Step 3; There is no state transition for the tiger domain.
         # In general, the ennvironment state can be transitioned
@@ -757,12 +783,12 @@ def test_planner(tiger_problem, planner, nsteps=3):
         # checking solver behavior. In general, this observation
         # should be sampled from agent's observation model, as
         #
-        #    real_observation = tiger_problem.agent.observation_model.sample(tiger_problem.env.state, action)
+        real_observation = tiger_problem.agent.observation_model.sample(tiger_problem.env.state, action)
         #
         # or coming from an external source (e.g. robot sensor
         # reading). Note that tiger_problem.env.state should store
         # the environment state after transition.
-        real_observation = Observation(tiger_problem.env.state.human.tiredness, tiger_problem.env.state.human.lr_bias)
+        # real_observation = Observation(tiger_problem.env.state.human.tiredness, tiger_problem.env.state.human.lr_bias)
         print(">> Observation: %s" % real_observation)
 
         # Step 5
@@ -779,7 +805,7 @@ def test_planner(tiger_problem, planner, nsteps=3):
                                                           tiger_problem.agent.transition_model)
             tiger_problem.agent.set_belief(new_belief)
 
-test_planner(prob, pomcp, 3)
+test_planner(prob, pomcp, 10)
 
 
 
