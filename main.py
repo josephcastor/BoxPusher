@@ -20,16 +20,10 @@ class Position():
 belt_positions = [Position.PICKUP_1, Position.PICKUP_2, Position.PICKUP_3, Position.PICKUP_4, Position.PICKUP_5]
 
 def belt_to_index(position):
-    if position == Position.PICKUP_1:
-        return 0
-    elif position == Position.PICKUP_2:
-        return 1
-    elif position == Position.PICKUP_3:
-        return 2
-    elif position == Position.PICKUP_4:
-        return 3
-    else:
-        return 4
+    for i in range(len(belt_positions)):
+        if position == belt_positions[i]:
+            return i
+    return -1
 
 total_belt_positions = 5
 

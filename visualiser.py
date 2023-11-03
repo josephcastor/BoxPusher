@@ -1,12 +1,22 @@
 import math
 import numpy as np
 
-def visualiser():
-    width = 9
-    height= 5
+from main import Position
+from main import State
+from main import Human
+from main import Robot
+from main import belt_positions
+from main import belt_to_index
+
+
+
+def show_state(state: State):
+    width = len(state.belt)
+    height = 4
 
     rows = 4 * height + 1
     columns = 6 * width + 1
+
     empty_display = np.full((rows, columns), ' ', dtype=str)
 
     for row_number in range(rows):
@@ -14,57 +24,56 @@ def visualiser():
             if column_number % 6 == 0 or row_number % 4 == 0:
                 if row_number <= 4:
                     empty_display[row_number][column_number] = '#'
-                else:
+                elif row_number <= 8:
                     empty_display[row_number][column_number] = '·'
-    for r in range(-1, 2):
-        for c in range(-2, 3):
-            empty_display[row_loc(height-1) + r][col_loc(math.floor(width / 2)) + c] = '$'
-    # empty_display[row_loc(height-1)][col_loc(math.floor(width / 2))] = "G"
+                elif column_number >= columns/2 - 4 and column_number <= columns/2 + 3:
+                    empty_display[row_number][column_number] = '·'
+                elif row_number == rows - 1 or column_number == 0 or column_number == columns - 1:
+                    empty_display[row_number][column_number] = '·'
 
-    # print_grid(empty_display)
-    # state = initial_state
-    human_row = 2
-    human_column = 8
-    boxes = {0, 3}
-    while True:
-        print()
-        display = empty_display.copy()
-        display = show_belt(display, boxes)
-        display = show_robot(display, 4, 0)
-        display = show_human(display, human_row, human_column)
-        print_grid(display)
-        print()
-        next_move = input("Next Move: ")
-        print()
-        if next_move == "up":
-            human_row = max(1, human_row - 1)
-        elif next_move == "down":
-            human_row = min(4, human_row + 1)
-        elif next_move == "left":
-            human_column = max(0, human_column - 1)
-        elif next_move == "right":
-            human_column = min(8, human_column + 1)
-        boxes = update_boxes(boxes)
+            if column_number >= columns/2 - 3 and column_number <= columns/2 + 2:
+                if row_number >= rows - 4 and row_number != rows - 1 and column_number:
+                    empty_display[row_number][column_number] = '$'
 
 
-def update_boxes(boxes):
-    new_boxes = set()
-    for box in boxes:
-        if box < 8:
-            new_boxes.add(box + 1)
-    return new_boxes
+    # for r in range(-2, 3):
+    #     for c in range(-3, 4):
+    #         empty_display[row_loc(height-1) + r][col_loc(math.floor(width / 2)) + c] = '$'
 
 
+    human_position = state.human.position
+    human_row, human_column = position_to_coords(human_position, True, width)
+    robot_position = state.robot.position
+    robot_row, robot_column = position_to_coords(robot_position, False, width)
 
-def show_belt(display, boxes):
-    for box in boxes:
-        for j in range(2, 5):
-            display[1][box*6 + j] = "X"
-            display[2][box*6 + 2] = "X"
-            display[2][box * 6 + 4] = "X"
-            display[3][box * 6 + j] = "X"
+    display = empty_display.copy()
+    display = show_human(display, human_row, human_column)
+    display = show_robot(display, robot_row, robot_column)
+    display = show_boxes(display, state.belt)
+    print_grid(display)
+    return
 
+
+def show_boxes(display, belt):
+    for i in range(len(belt)):
+        if belt[i] ==1:
+            for j in range(2, 5):
+                display[1][i * 6 + j] = "X"
+                display[2][i * 6 + 2] = "X"
+                display[2][i * 6 + 4] = "X"
+                display[3][i * 6 + j] = "X"
     return display
+def position_to_coords(position, is_human, width):
+    if position in belt_positions:
+        index = belt_to_index(position)
+        return 1, index
+    elif position == Position.DROP_OFF:
+        return 2, int(width/2)
+    elif position == Position.REST_POSITION:
+        if is_human:
+            return 3, 0
+        else:
+            return 3, width - 1
 
 def show_robot(display, robot_row, robot_column):
     for i in range(-1, 2):
@@ -83,20 +92,6 @@ def show_human(display, human_row, human_column):
     return display
 
 
-
-
-
-# def show_robot(display, state):
-#     row = row_loc(state.robot_row)
-#     col = col_loc(state.robot_column)
-#     for i in range(-1, 2):
-#         for j in range(-1, 2):
-#             if not (i == 0 or j == 0):
-#                 display[row + i][col + j] = 'r'
-#     return display
-
-
-
 def print_grid(display):
     for row in display:
         str = ''
@@ -112,4 +107,9 @@ def col_loc(x):
 
 
 if __name__ == "__main__":
-    visualiser()
+    # visualiser()
+    human = Human(Position.DROP_OFF, False, 1, 3)
+    robot = Robot(Position.REST_POSITION, False)
+    state = State(human, robot, np.array([0,1,0,1,0,0,0]), 0,0, "whatevs")
+
+    show_state(state)
