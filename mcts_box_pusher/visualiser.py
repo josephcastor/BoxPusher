@@ -50,6 +50,7 @@ def show_state(state: State):
     display = show_human(display, human_row, human_column)
     display = show_robot(display, robot_row, robot_column)
     display = show_boxes(display, state.belt)
+    print("packed: "+state.packed)
     print_grid(display)
     return
 
@@ -80,6 +81,10 @@ def show_robot(display, robot_row, robot_column):
         for j in range(-1, 2):
             if not (abs(i) == abs(j)):
                 display[row_loc(robot_row) + i][col_loc(robot_column) + j] = 'R'
+            else:
+                display[row_loc(robot_row) + i][col_loc(robot_column) + j] = 'X'
+
+                
     # display[row_loc(robot_row)][col_loc(robot_column)] = 'R'
     return display
 
@@ -88,6 +93,10 @@ def show_human(display, human_row, human_column):
         for j in range(-1, 2):
             if abs(i) == abs(j):
                 display[row_loc(human_row) + i][col_loc(human_column) + j] = 'H'
+            else:
+                display[row_loc(human_row) + i][col_loc(human_column) + j] = 'X'
+
+
     # display[row_loc(robot_row)][col_loc(robot_column)] = 'R'
     return display
 

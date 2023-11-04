@@ -820,11 +820,9 @@ def test_planner(tiger_problem, planner, nsteps=10):
 
 
 # test_planner(prob, pomcp, 10)
-agent = prob.agent
+# agent = prob.agent
 
-action = pomcp.plan(agent)
-dd = TreeDebugger(agent.tree)
-import pdb; pdb.set_trace()
+
 
 
 
