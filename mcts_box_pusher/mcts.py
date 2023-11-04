@@ -11,53 +11,125 @@ VACUUM_SUCCESS_PROB = {
     'THICK_CARPET': 0.75
 }
 
+exploration_constant = 1000
+
 class TreeNode:
     """A node class for Monte Carlo Tree Search."""
     
-    def __init__(self, state, parent=None):
+    def __init__(self, state, parent=None, parent_action=None):
         self.state = state
         self.parent = parent
+        self.parent_action = parent_action
+        self.action_values = self.initial_action_values()
+        self.action_visits = self.initial_action_visits()
         self.children = []
         self.cumulative_reward = 0
-        self.visit_count = 0  
-        self.action = None
+        self.visit_count = 1
+
+    def initial_action_values(self):
+        action_values = dict()
+        for action in self.state.get_legal_actions():
+            action_values[action] = 0
+        return action_values
+
+    def initial_action_visits(self):
+        action_visits = dict()
+        for action in self.state.get_legal_actions():
+            action_visits[action] = 0
+        return action_visits
 
     def is_fully_expanded(self):
         """Checks if all possible child nodes (actions) have been explored."""
         
         return len(self.children) == len(self.state.get_legal_actions())
 
-    def get_best_child(self, exploration_weight=1.4):
-        """Returns the best child node based on value."""
-        
-        return max(self.children, key=lambda child: child.compute_value(exploration_weight))
+    def select_action(self):
+        max_score = None
+        chosen_action = None
+        # Pick the action with the maximum score using UCB1
+        for a in self.action_visits.keys():
+            visited = self.action_visits[a]
+            score = self.action_values[a]
+            if visited == 0:
+                exploitation = 0
+            else:
+                exploitation = score / visited
+            # UCB1 exploration and exploitation formula
+            exploration = exploration_constant * math.sqrt(math.log(self.visit_count) / max(float(self.action_visits[a]), 0.1))
+            score = exploitation + exploration
+            if max_score is None or score > max_score:
+                max_score = score
+                chosen_action = a
 
-    def compute_value(self, exploration_weight=1.4):
-        """Computes the value of the node."""
-        
-        if self.visit_count == 0:
-            return float("-inf") # Handle edge case for unvisited node
-        
-        # Calculate exploitation value: average reward of this node
-        exploitation_term = self.cumulative_reward / self.visit_count
+        return chosen_action
+    def get_best_action(self):
+        max_score = None
+        chosen_action = None
+        # Pick the action with the maximum score using UCB1
+        for a in self.action_visits.keys():
+            visited = self.action_visits[a]
+            score = self.action_values[a]
+            if visited == 0:
+                exploitation = 0
+            else:
+                exploitation = score / visited
 
-        # Calculate exploration value: encouraging exploration of less visited nodes
-        # exploration_term = exploration_weight * (self.parent.visit_count ** 0.5) / (1 + self.visit_count)
-        exploration_term = exploration_weight * (math.log(self.parent.visit_count) / self.visit_count) ** 0.5 
+            if max_score is None or exploitation > max_score:
+                max_score = exploitation
+                chosen_action = a
 
-        return exploitation_term + exploration_term
+        return chosen_action
+
+
+    # def compute_value(self, exploration_weight=1.4):
+    #     """Computes the value of the node."""
+    #
+    #     if self.visit_count == 0:
+    #         exploitation = 0
+    #     else:
+    #         exploitation = self.cumulative_reward / self.visit_count
+    #
+    #     exploration = exploration_weight * math.sqrt(math.log(self.visit_count) / max(float(self.action_visits[a]), 0.1))
+    #
+    #
+    #
+    #     # Calculate exploitation value: average reward of this node
+    #     exploitation_term = self.cumulative_reward / self.visit_count
+    #
+    #     # Calculate exploration value: encouraging exploration of less visited nodes
+    #     # exploration_term = exploration_weight * (self.parent.visit_count ** 0.5) / (1 + self.visit_count)
+    #     exploration_term = exploration_weight * (math.log(self.parent.visit_count) / self.visit_count) ** 0.5
+    #
+    #     return exploitation_term + exploration_term
     
     def traverse_tree(self):
         """Traverses the tree to select a child node."""
         
         # Start from current node
-        current_node = self
+        # Selection and Expansion:
+        found_new_child = False
+        while not (found_new_child or self.state.is_terminal()):
+            # SELECT an action edge to explore using Multi-Arm Bandit:
+            action = self.select_action()
+            # Simulate applying the action:
+            resultant_state = self.state.take_action(action)
 
-        # Traverse while node is not terminal and is fully expanded
-        while not current_node.state.is_terminal() and current_node.is_fully_expanded():
-            # Select the best child based on UCT or other criteria
-            current_node = current_node.get_best_child()
-        return current_node
+            child_node = None
+            for child in self.children:
+                if child.parent_action == action and child.state == resultant_state:
+                    child_node = child
+                    break
+            # SELECTED action has not been expanded from this state, so EXPAND:
+            if child_node is None:
+                child_node = TreeNode(resultant_state, self, action)
+                self.children.append(child_node)
+                found_new_child = True
+
+            node = child_node
+
+        return node
+
+
 
     def expand_child_node(self):
         """Expands the current node by adding a child node based on an unexplored action."""
@@ -78,25 +150,28 @@ class TreeNode:
             # If state is new, create child node and update its reward
             if new_state not in explored_states:
                 reward = self.state.get_reward_for_action(action, new_state)
-                child_node = TreeNode(new_state, self)
+                child_node = TreeNode(new_state, self, action)
                 child_node.update_rewards(reward)
-                child_node.action = action
                 self.children.append(child_node)
                 return child_node
 
         # If all states are explored and this method is still called, raise an error
         raise Exception("Node is fully expanded but an attempt was made to expand it further.")
 
-    def update_rewards(self, reward):
+    def update_rewards(self, reward, discount):
         """Backpropagates and updates the reward values."""
 
         # Start from current node and move up the tree
+
         current_node = self
-        while current_node:
+        while current_node.parent != None:
             # Update visit count and cumulative reward for the node
-            current_node.visit_count += 1
-            current_node.cumulative_reward += reward
+            current_node.parent.action_values[current_node.parent_action] += reward
+            current_node.parent.visit_count += 1
+            current_node.parent.action_visits[current_node.parent_action] += 1
+
             current_node = current_node.parent # Move to the parent node
+            reward *= discount
 
 class MonteCarloTreeSearch:
     """
@@ -120,24 +195,34 @@ class MonteCarloTreeSearch:
             # Step 1: Selection
             selected_node = self.root_node.traverse_tree()
 
+
+
             # Check if selected node is terminal
             if not selected_node.state.is_terminal():
                 # Step 2: Expansion
-                new_child_node = selected_node.expand_child_node()
+                # new_child_node = selected_node.expand_child_node()
 
                 # Step 3: Simulation
-                simulation_reward = self.run_simulation(new_child_node)
+                simulation_reward = self.run_simulation(selected_node)
 
                 # Step 4: Backpropagation
-                new_child_node.update_rewards(simulation_reward)
-            else:
-                # If node is terminal, just backpropagate its reward
-                terminal_reward = selected_node.state.get_reward_for_terminal()
-                selected_node.update_rewards(terminal_reward)
+                selected_node.update_rewards(simulation_reward, 0.85)
+            # else:
+            #     simulation_reward = 0
+            #     # If node is terminal, just backpropagate its reward
+            #     # terminal_reward = selected_node.state.get_reward_for_terminal()
+            #     # selected_node.update_rewards(terminal_reward)
         
         # After MCTS completes, return the best child node of the root based on value function
         print("Joseph")
-        return self.root_node.get_best_child(exploration_weight=self.exploration_factor)
+        # Printing action exploration:
+        for a in self.root_node.action_visits.keys():
+            print("visits: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_visits[a]))
+            print("value: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a]))
+            print("score: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a] / self.root_node.action_visits[a]))
+
+
+        return self.root_node.get_best_action()
 
     def run_simulation(self, starting_node):
         """
@@ -147,8 +232,10 @@ class MonteCarloTreeSearch:
         cumulative_reward = 0
 
         # Randomly traverse the game tree until a terminal state
-        while not current_state.is_terminal():
+        for _ in range(20):
             # Select a random action
+            # legal_actions = current_state.get_legal_actions()
+
             chosen_action = random.choice(current_state.get_legal_actions()) 
             # Transition to the next state
             next_state = current_state.take_action(chosen_action) 
@@ -254,12 +341,13 @@ atomic_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_
 index_to_actions = ['GOTO_P1','GOTO_2','GOTO_P3','GOTO_P4','GOTO_P5','GOTO_DROPOFF','REST', 'PICKUP','PUTDOWN']
 class VacuumEnvironmentState:
     """State representation for a vacuum cleaning robot in a grid environment."""
-    def __init__(self, human, robot, belt, packed, missed):
+    def __init__(self, human, robot, belt, packed, missed, time_step):
         self.human = human
         self.robot = robot
         self.belt = belt
         self.packed = packed # count of packed packages
         self.missed = missed # count of missed missed
+        self.time_step = 1
 
 
     def __hash__(self):
@@ -279,7 +367,7 @@ class VacuumEnvironmentState:
         return False
 
     def __str__(self):
-        return f"State(human={self.human}, robot={self.robot}, belt={self.belt}, packed={self.packed}, missed={self.missed})"
+        return f"State(human={self.human}, robot={self.robot}, belt={self.belt}, packed={self.packed}, missed={self.missed}, time={self.time_step})"
 
 
     def is_terminal(self):
@@ -290,7 +378,18 @@ class VacuumEnvironmentState:
 
     def get_legal_actions(self):
         """Computes and returns a list of legal actions from the current state."""
-        return [(a,b) for a in atomic_actions for b in atomic_actions]
+        legal_human = list(range(len(self.belt) + 2))
+        legal_robot = list(range(len(self.belt) + 2))
+
+        if self.human.holding_box and self.human.position == Position.DROP_OFF:
+            legal_human.append(AtomicAction.PUTDOWN)
+        if self.human.position <= 4 and not self.human.holding_box and self.belt[self.human.position] == 1:
+            legal_human.append(AtomicAction.PICKUP)
+        if self.robot.holding_box and self.robot.position == Position.DROP_OFF:
+            legal_robot.append(AtomicAction.PUTDOWN)
+        if self.robot.position <= 4 and not self.robot.holding_box and self.belt[self.robot.position] == 1:
+            legal_robot.append(AtomicAction.PICKUP)
+        return [(a,b) for a in legal_human for b in legal_robot]
 
 
     def take_action(self, action):
@@ -299,8 +398,9 @@ class VacuumEnvironmentState:
         human_action = action[0]
         robot_action = action[1]
         human_rest_prob = self.human.tiredness / 10
+        human_rest_prob = 0
 
-        resultant_state = VacuumEnvironmentState(copy.copy(self.human), copy.copy(self.robot), copy.copy(self.belt), copy.copy(self.packed), copy.copy(self.missed))
+        resultant_state = VacuumEnvironmentState(copy.copy(self.human), copy.copy(self.robot), copy.copy(self.belt), copy.copy(self.packed), copy.copy(self.missed), self.time_step + 1)
         
         if human_action == AtomicAction.REST:
             resultant_state.human.position = Position.REST_POSITION
@@ -465,7 +565,7 @@ class VacuumEnvironmentState:
         # Shift belt to the left:
         for i in range(len(resultant_state.belt) - 1):
             resultant_state.belt[i] = resultant_state.belt[i + 1]
-        resultant_state.belt[-1] = np.random.randint(0,2)
+        resultant_state.belt[-1] = np.random.randint(1,2)
 
         # print(resultant_state.belt)
 
@@ -475,14 +575,13 @@ class VacuumEnvironmentState:
     def get_reward_for_action(self, action, next_state):
         """Computes the reward for taking an action that leads to a new state."""
         reward = -1
-        if next_state.packed > self.packed:
-            reward += 10
-        if next_state.human.holding_box and not self.human.holding_box:
-            reward += 5
-        if next_state.robot.holding_box and not self.robot.holding_box:
-            reward += 5
-        if next_state.missed > self.missed:
-            reward -= 5
+        # if next_state.packed > self.packed:
+        #     reward += 100
+        reward += 10*next_state.packed / self.time_step
+        # if next_state.human.holding_box and not self.human.holding_box:
+        #     reward += 50
+        # if next_state.robot.holding_box and not self.robot.holding_box:
+        #     reward += 50
         return reward
     
 
@@ -502,7 +601,7 @@ def simulate_mcts_run(grid_size, planning_duration, trial_num):
 
     human1 = Human(Position.PICKUP_1,False, 1, 1)
     robot = Robot(Position.REST_POSITION, False)
-    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0,1,0,0,0]), 0,0)
+    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0,1,0,0,0]), 0,0, 1)
 
     # Initialise the type of flooring for each grid cell (all set to 'VINYL').
     
@@ -519,21 +618,20 @@ def simulate_mcts_run(grid_size, planning_duration, trial_num):
 
         # Initialise the MCTS with the root node, a specified planning duration, and exploration factor.
         mcts = MonteCarloTreeSearch(root, planning_duration=planning_duration, exploration_factor=1)
+
         
         print(current_state)
         show_state(current_state)
-        best_action_node = mcts.run_search()
+        # best_action = root.get_best_action()
 
-        # Find the best action by matching the best action node with the corresponding legal action.
-        best_action = next(action for action, child in zip(current_state.get_legal_actions(), root.children) if child == best_action_node)
         # Printing breakdown of actions:
-        tuple_actions = [(a,b) for a in range(9) for b in range(9)]
-        aggregated_visits = dict(zip(tuple_actions, [0 for _ in range(81)]))
-        for n in root.children:
-            aggregated_visits[n.action] += n.visit_count
-        print(aggregated_visits)
+        # tuple_actions = [(a,b) for a in range(9) for b in range(9)]
+        # aggregated_visits = dict(zip(tuple_actions, [0 for _ in range(81)]))
+        # for n in root.children:
+        #     aggregated_visits[n.action] += n.visit_count
+        # print(aggregated_visits)
 
-
+        best_action = mcts.run_search()
         print("Human action taken:", index_to_actions[best_action[0]])
         print("Robot action taken:", index_to_actions[best_action[1]])
         current_state = current_state.take_action(best_action)
