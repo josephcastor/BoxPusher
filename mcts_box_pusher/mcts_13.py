@@ -6,8 +6,13 @@ import copy
 
 exploration_constant = 100
 
-random_box_order = [0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0]
+STEPS_PER_TRIAL = 30
 
+random_box_order = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0,
+       1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1,
+       1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1,
+       1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+       1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1]
 
 class TreeNode:
     """A node class for Monte Carlo Tree Search."""
@@ -21,6 +26,7 @@ class TreeNode:
         self.children = []
         self.cumulative_reward = 0
         self.visit_count = 1
+        self.value = 0
 
     def initial_action_values(self):
         action_values = dict()
@@ -105,7 +111,6 @@ class TreeNode:
 
         return node
 
-
     def update_rewards(self, reward, discount):
         """Backpropagates and updates the reward values."""
 
@@ -114,9 +119,11 @@ class TreeNode:
         current_node = self
         while current_node.parent != None:
             # Update visit count and cumulative reward for the node
-            current_node.parent.action_values[current_node.parent_action] += reward
+            current_node.parent.action_values[current_node.parent_action] += reward + discount * (current_node.value / current_node.visit_count)
             current_node.parent.visit_count += 1
             current_node.parent.action_visits[current_node.parent_action] += 1
+
+            current_node.parent.value += reward + discount * (current_node.value / current_node.visit_count)
 
             current_node = current_node.parent # Move to the parent node
             reward *= discount
@@ -603,21 +610,20 @@ class VacuumEnvironmentState:
 def simulate_mcts_run(planning_duration, trial_num):
     # Initialise grid with randomly placed obstacles
 
-    # Set the initial robot position to the first row and a random column.
-
     human1 = Human(Position.PICKUP_1,False, 0, 0)
     robot = Robot(Position.REST_POSITION, False)
-    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0,1,0,0,0,1,0,0,0,1,0,0,1]), 0, 0, 1, 0)
+    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0,0,0,0,0,0,0,0,0,0,0,0,0]), 0,0, 1, 0)
 
     # Initialise the type of flooring for each grid cell (all set to 'VINYL').
     
+    cumulative_reward = 0
     # Create an initial state for the vacuum environment.
     current_state = init_true_state
     steps = 0
     
-    print(f"\nTrial {trial_num + 1}")
+    print(f"\nTrial {trial_num + 1} for belt size 5:")
     i = 0
-    while not current_state.is_terminal() and i < 10:
+    while i < STEPS_PER_TRIAL:
         i += 1 
         # Initialise a new tree node with the current state.
         root = TreeNode(current_state)
@@ -625,7 +631,6 @@ def simulate_mcts_run(planning_duration, trial_num):
         # Initialise the MCTS with the root node, a specified planning duration, and exploration factor.
         mcts = MonteCarloTreeSearch(root, planning_duration=planning_duration, heuristic=True)
 
-        
         print(current_state)
         show_state(current_state)
         # best_action = root.get_best_action()
@@ -638,41 +643,41 @@ def simulate_mcts_run(planning_duration, trial_num):
         # print(aggregated_visits)
 
         best_action = mcts.run_search()
+        
         print("Human action taken:", index_to_actions[best_action[0]])
         print("Robot action taken:", index_to_actions[best_action[1]])
-        current_state = current_state.take_action(best_action, True)
+        
+        
+        next_state = current_state.take_action(best_action, True)
+        reward = current_state.get_reward_for_action(best_action, next_state )
+        print("Reward: ", reward)
+        cumulative_reward += reward 
 
-        # Ensuring the missed count has been updated correctly:
-        if current_state.belt[0] == 1:
-            # New missed package:
-            print(current_state.belt)
+        current_state = next_state
+
+        # # Ensuring the missed count has been updated correctly:
+        # if current_state.belt[0] == 1:
+        #     # New missed package:
+        #     print(current_state.belt)
 
         steps += 1
 
-    print("Terminal State Reached:", current_state)
-    return steps, planning_duration * steps
+    print("End of trial.")
+    print("Cumulative reward: ", cumulative_reward)
+    return cumulative_reward
 
-def run_experiments(planning_duration=5, num_trials=5):
+def run_experiments(planning_duration=5, num_trials=50):
     results = []
 
-    for n in range(4, 8):
+    for n in range(1):
         # Run multiple trials for each grid size and store the data.
         trials_data = [simulate_mcts_run(planning_duration, i) for i in range(num_trials)]
         
         # Extract the number of steps and time taken for each trial.
-        steps_list, time_list = zip(*trials_data)
 
-        # Calculate the median number of steps and time taken for each trial.
-        median_steps = sorted(steps_list)[num_trials // 2]
-        median_time = sorted(time_list)[num_trials // 2]
+        results.append(trials_data)
 
-        # Calculate the standard deviation of the number of steps and time taken.
-        std_steps = (sum([(x - median_steps) ** 2 for x in steps_list]) / num_trials) ** 0.5
-        std_time = (sum([(x - median_time) ** 2 for x in time_list]) / num_trials) ** 0.5
-        
-        results.append((n, median_steps, median_time, std_steps, std_time))
-
-    display_results(results)
+    print(results)
 
 def display_results(results):
     print("\nResults:")
