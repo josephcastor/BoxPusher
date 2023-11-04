@@ -4,7 +4,10 @@ import random
 import numpy as np
 import copy
 
-exploration_constant = 1000
+exploration_constant = 100
+
+random_box_order = [0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0, 1, 0]
+
 
 class TreeNode:
     """A node class for Monte Carlo Tree Search."""
@@ -85,7 +88,7 @@ class TreeNode:
             # SELECT an action edge to explore using Multi-Arm Bandit:
             action = self.select_action()
             # Simulate applying the action:
-            resultant_state = self.state.take_action(action)
+            resultant_state = self.state.take_action(action, False)
 
             child_node = None
             for child in self.children:
@@ -159,12 +162,11 @@ class MonteCarloTreeSearch:
             #     # selected_node.update_rewards(terminal_reward)
         
         # After MCTS completes, return the best child node of the root based on value function
-        print("Joseph")
         # Printing action exploration:
-        for a in self.root_node.action_visits.keys():
-            print("visits: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_visits[a]))
-            print("value: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a]))
-            print("score: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a] / self.root_node.action_visits[a]))
+        # for a in self.root_node.action_visits.keys():
+        #     print("visits: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_visits[a]))
+        #     print("value: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a]))
+        #     print("score: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a] / self.root_node.action_visits[a]))
 
 
         return self.root_node.get_best_action()
@@ -244,7 +246,7 @@ class MonteCarloTreeSearch:
             else:
                 chosen_action = random.choice(current_state.get_legal_actions())
             # Transition to the next state
-            next_state = current_state.take_action(chosen_action) 
+            next_state = current_state.take_action(chosen_action, False)
             # Get the reward for the transition
             transition_reward = current_state.get_reward_for_action(chosen_action, next_state) 
             # Accumulate rewards
@@ -306,11 +308,13 @@ class Position():
     PICKUP_5 = 4
     PICKUP_6 = 5
     PICKUP_7 = 6
-    DROP_OFF = 7
-    REST_POSITION = 8
+    PICKUP_8 = 7
+    PICKUP_9 = 8
+    DROP_OFF = 9
+    REST_POSITION = 10
 
 
-belt_positions = [Position.PICKUP_1, Position.PICKUP_2, Position.PICKUP_3, Position.PICKUP_4, Position.PICKUP_5, Position.PICKUP_6, Position.PICKUP_7]
+belt_positions = [Position.PICKUP_1, Position.PICKUP_2, Position.PICKUP_3, Position.PICKUP_4, Position.PICKUP_5, Position.PICKUP_6, Position.PICKUP_7, Position.PICKUP_8, Position.PICKUP_9]
 
 
 
@@ -322,16 +326,18 @@ class AtomicAction():
     GOTO_P5 = 4
     GOTO_P6 = 5
     GOTO_P7 = 6
-    GOTO_DROPOFF = 7
-    REST = 8
-    PICKUP = 9
-    PUTDOWN = 10
+    GOTO_P8 = 7
+    GOTO_P9 = 8
+    GOTO_DROPOFF = 9
+    REST = 10
+    PICKUP = 11
+    PUTDOWN = 12
 
-go_to_belt_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5, AtomicAction.GOTO_P6, AtomicAction.GOTO_P7]
+go_to_belt_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5, AtomicAction.GOTO_P6, AtomicAction.GOTO_P7, AtomicAction.GOTO_P8, AtomicAction.GOTO_P9]
 
-atomic_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5, AtomicAction.GOTO_P6, AtomicAction.GOTO_P7, AtomicAction.GOTO_DROPOFF, AtomicAction.PICKUP, AtomicAction.PUTDOWN, AtomicAction.REST]
+atomic_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5, AtomicAction.GOTO_P6, AtomicAction.GOTO_P7, AtomicAction.GOTO_P8, AtomicAction.GOTO_P9, AtomicAction.GOTO_DROPOFF, AtomicAction.PICKUP, AtomicAction.PUTDOWN, AtomicAction.REST]
 
-index_to_actions = ['GOTO_P1','GOTO_P2','GOTO_P3','GOTO_P4','GOTO_P5','GOTO_P6', 'GOTO_P7', 'GOTO_DROPOFF','REST', 'PICKUP','PUTDOWN']
+index_to_actions = ['GOTO_P1','GOTO_P2','GOTO_P3','GOTO_P4','GOTO_P5','GOTO_P6', 'GOTO_P7','GOTO_P8', 'GOTO_P9', 'GOTO_DROPOFF','REST', 'PICKUP','PUTDOWN']
 class VacuumEnvironmentState:
     """State representation for a vacuum cleaning robot in a grid environment."""
     def __init__(self, human, robot, belt, packed, missed, time_step, time_since_rest):
@@ -382,16 +388,16 @@ class VacuumEnvironmentState:
 
         if self.human.holding_box and self.human.position == Position.DROP_OFF:
             legal_human.append(AtomicAction.PUTDOWN)
-        if self.human.position <= 4 and not self.human.holding_box and self.belt[self.human.position] == 1:
+        if self.human.position <= len(self.belt) - 1 and not self.human.holding_box and self.belt[self.human.position] == 1:
             legal_human.append(AtomicAction.PICKUP)
         if self.robot.holding_box and self.robot.position == Position.DROP_OFF:
             legal_robot.append(AtomicAction.PUTDOWN)
-        if self.robot.position <= 4 and not self.robot.holding_box and self.belt[self.robot.position] == 1:
+        if self.robot.position <= len(self.belt) - 1 and not self.robot.holding_box and self.belt[self.robot.position] == 1:
             legal_robot.append(AtomicAction.PICKUP)
         return [(a,b) for a in legal_human for b in legal_robot]
 
 
-    def take_action(self, action):
+    def take_action(self, action, is_executing):
         """Returns a new state after applying the given action."""
 
         human_action = action[0]
@@ -548,7 +554,11 @@ class VacuumEnvironmentState:
         # Shift belt to the left:
         for i in range(len(resultant_state.belt) - 1):
             resultant_state.belt[i] = resultant_state.belt[i + 1]
-        resultant_state.belt[-1] = np.random.randint(0,2)
+
+        if is_executing:
+            resultant_state.belt[-1] = random_box_order[self.time_step]
+        else:
+            resultant_state.belt[-1] = np.random.randint(0,2)
 
         # Update tiredness of human:
         if resultant_state.human.position == Position.REST_POSITION:
@@ -589,7 +599,7 @@ def simulate_mcts_run(planning_duration, trial_num):
 
     human1 = Human(Position.PICKUP_1,False, 0, 0)
     robot = Robot(Position.REST_POSITION, False)
-    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0,1,0,0,0,1,0]), 0, 0, 1, 0)
+    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0,1,0,0,0,1,0,0,0]), 0, 0, 1, 0)
 
     # Initialise the type of flooring for each grid cell (all set to 'VINYL').
     
@@ -622,7 +632,7 @@ def simulate_mcts_run(planning_duration, trial_num):
         best_action = mcts.run_search()
         print("Human action taken:", index_to_actions[best_action[0]])
         print("Robot action taken:", index_to_actions[best_action[1]])
-        current_state = current_state.take_action(best_action)
+        current_state = current_state.take_action(best_action, True)
 
         # Ensuring the missed count has been updated correctly:
         if current_state.belt[0] == 1:
@@ -676,7 +686,6 @@ def belt_to_index(position):
 #
 
 # VISUALISER STUFF:
-
 
 def show_state(state: VacuumEnvironmentState):
     width = len(state.belt)

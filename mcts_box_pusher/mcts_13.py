@@ -310,11 +310,15 @@ class Position():
     PICKUP_7 = 6
     PICKUP_8 = 7
     PICKUP_9 = 8
-    DROP_OFF = 9
-    REST_POSITION = 10
+    PICKUP_10 = 9
+    PICKUP_11 = 10
+    PICKUP_12 = 11
+    PICKUP_13 = 12
+    DROP_OFF = 13
+    REST_POSITION = 14
 
 
-belt_positions = [Position.PICKUP_1, Position.PICKUP_2, Position.PICKUP_3, Position.PICKUP_4, Position.PICKUP_5, Position.PICKUP_6, Position.PICKUP_7, Position.PICKUP_8, Position.PICKUP_9]
+belt_positions = [Position.PICKUP_1, Position.PICKUP_2, Position.PICKUP_3, Position.PICKUP_4, Position.PICKUP_5, Position.PICKUP_6, Position.PICKUP_7, Position.PICKUP_8, Position.PICKUP_9, Position.PICKUP_10, Position.PICKUP_11, Position.PICKUP_12, Position.PICKUP_13]
 
 
 
@@ -328,16 +332,20 @@ class AtomicAction():
     GOTO_P7 = 6
     GOTO_P8 = 7
     GOTO_P9 = 8
-    GOTO_DROPOFF = 9
-    REST = 10
-    PICKUP = 11
-    PUTDOWN = 12
+    GOTO_P10 = 9
+    GOTO_P11 = 10
+    GOTO_P12 = 11
+    GOTO_P13 = 12
+    GOTO_DROPOFF = 13
+    REST = 14
+    PICKUP = 15
+    PUTDOWN = 16
 
-go_to_belt_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5, AtomicAction.GOTO_P6, AtomicAction.GOTO_P7, AtomicAction.GOTO_P8, AtomicAction.GOTO_P9]
+go_to_belt_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5, AtomicAction.GOTO_P6, AtomicAction.GOTO_P7, AtomicAction.GOTO_P8, AtomicAction.GOTO_P9, AtomicAction.GOTO_P10, AtomicAction.GOTO_P11, AtomicAction.GOTO_P12, AtomicAction.GOTO_P13]
 
-atomic_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5, AtomicAction.GOTO_P6, AtomicAction.GOTO_P7, AtomicAction.GOTO_P8, AtomicAction.GOTO_P9, AtomicAction.GOTO_DROPOFF, AtomicAction.PICKUP, AtomicAction.PUTDOWN, AtomicAction.REST]
+atomic_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5, AtomicAction.GOTO_P6, AtomicAction.GOTO_P7, AtomicAction.GOTO_P8, AtomicAction.GOTO_P9, AtomicAction.GOTO_P10, AtomicAction.GOTO_P11, AtomicAction.GOTO_P12, AtomicAction.GOTO_P13, AtomicAction.GOTO_DROPOFF, AtomicAction.PICKUP, AtomicAction.PUTDOWN, AtomicAction.REST]
 
-index_to_actions = ['GOTO_P1','GOTO_P2','GOTO_P3','GOTO_P4','GOTO_P5','GOTO_P6', 'GOTO_P7','GOTO_P8', 'GOTO_P9', 'GOTO_DROPOFF','REST', 'PICKUP','PUTDOWN']
+index_to_actions = ['GOTO_P1','GOTO_P2','GOTO_P3','GOTO_P4','GOTO_P5','GOTO_P6', 'GOTO_P7','GOTO_P8', 'GOTO_P9', 'GOTO_P10', 'GOTO_P11','GOTO_P12', 'GOTO_P13', 'GOTO_DROPOFF','REST', 'PICKUP','PUTDOWN']
 class VacuumEnvironmentState:
     """State representation for a vacuum cleaning robot in a grid environment."""
     def __init__(self, human, robot, belt, packed, missed, time_step, time_since_rest):
@@ -388,11 +396,11 @@ class VacuumEnvironmentState:
 
         if self.human.holding_box and self.human.position == Position.DROP_OFF:
             legal_human.append(AtomicAction.PUTDOWN)
-        if self.human.position <= 4 and not self.human.holding_box and self.belt[self.human.position] == 1:
+        if self.human.position <= len(self.belt) - 1 and not self.human.holding_box and self.belt[self.human.position] == 1:
             legal_human.append(AtomicAction.PICKUP)
         if self.robot.holding_box and self.robot.position == Position.DROP_OFF:
             legal_robot.append(AtomicAction.PUTDOWN)
-        if self.robot.position <= 4 and not self.robot.holding_box and self.belt[self.robot.position] == 1:
+        if self.robot.position <= len(self.belt) - 1 and not self.robot.holding_box and self.belt[self.robot.position] == 1:
             legal_robot.append(AtomicAction.PICKUP)
         return [(a,b) for a in legal_human for b in legal_robot]
 
@@ -599,7 +607,7 @@ def simulate_mcts_run(planning_duration, trial_num):
 
     human1 = Human(Position.PICKUP_1,False, 0, 0)
     robot = Robot(Position.REST_POSITION, False)
-    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0,1,0,0,0,1,0,0,0]), 0, 0, 1, 0)
+    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0,1,0,0,0,1,0,0,0,1,0,0,1]), 0, 0, 1, 0)
 
     # Initialise the type of flooring for each grid cell (all set to 'VINYL').
     

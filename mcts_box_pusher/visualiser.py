@@ -83,7 +83,7 @@ def show_robot(display, robot_row, robot_column, holding):
             elif i == 0 and j == 0 and holding:
                 display[row_loc(robot_row) + i][col_loc(robot_column) + j] = 'X'
 
-                
+
     # display[row_loc(robot_row)][col_loc(robot_column)] = 'R'
     return display
 
@@ -114,10 +114,10 @@ def col_loc(x):
     return 3 + 6*x
 
 
-if __name__ == "__main__":
-    # visualiser()
-    human = Human(Position.PICKUP_3, False, 1, 3)
-    robot = Robot(Position.PICKUP_5, False)
-    state = VacuumEnvironmentState(human, robot, np.array([0,1,0,1,0]), 0,0, "whatevs", 1)
-
-    show_state(state)
+# if __name__ == "__main__":
+#     # visualiser()
+#     human = Human(Position.PICKUP_3, False, 1, 3)
+#     robot = Robot(Position.PICKUP_5, False)
+#     state = VacuumEnvironmentState(human, robot, np.array([0,1,0,1,0]), 0,0, "whatevs", 1)
+#
+#     show_state(state)
