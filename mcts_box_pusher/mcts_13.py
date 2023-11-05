@@ -468,9 +468,10 @@ class VacuumEnvironmentState:
                         probs.append((i, prob))
                     rand = np.random.rand()
 
-                    for i in range(len(probs) - 1):
+                    for i in range(len(probs)):
                         if rand <= probs[i][1]:
                             resultant_state.human.position = belt_positions[probs[i][0]]
+                            break
 
 
                 elif bias_difference < 0:
@@ -483,9 +484,10 @@ class VacuumEnvironmentState:
                         probs.append((i, prob))
                     rand = np.random.rand()
 
-                    for i in range(len(probs) - 1):
+                    for i in range(len(probs)):
                         if rand <= probs[i][1]:
                             resultant_state.human.position = belt_positions[probs[i][0]]
+                            break
 
 
 
