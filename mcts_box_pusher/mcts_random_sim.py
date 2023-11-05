@@ -9,14 +9,15 @@ exploration_constant = 10
 STEPS_PER_TRIAL = 30
 
 random_box_order = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0,
-       1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1,
-       1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1,
-       1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-       1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1]
+                    1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 1,
+                    1, 1, 1, 1, 0, 0, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1]
+
 
 class TreeNode:
     """A node class for Monte Carlo Tree Search."""
-    
+
     def __init__(self, state, parent=None, parent_action=None):
         self.state = state
         self.parent = parent
@@ -42,7 +43,7 @@ class TreeNode:
 
     def is_fully_expanded(self):
         """Checks if all possible child nodes (actions) have been explored."""
-        
+
         return len(self.children) == len(self.state.get_legal_actions())
 
     def select_action(self):
@@ -57,13 +58,15 @@ class TreeNode:
             else:
                 exploitation = score / visited
             # UCB1 exploration and exploitation formula
-            exploration = exploration_constant * math.sqrt(math.log(self.visit_count) / max(float(self.action_visits[a]), 0.1))
+            exploration = exploration_constant * math.sqrt(
+                math.log(self.visit_count) / max(float(self.action_visits[a]), 0.1))
             score = exploitation + exploration
             if max_score is None or score > max_score:
                 max_score = score
                 chosen_action = a
 
         return chosen_action
+
     def get_best_action(self):
         max_score = None
         chosen_action = None
@@ -81,7 +84,6 @@ class TreeNode:
                 chosen_action = a
 
         return chosen_action
-
 
     # def compute_value(self, exploration_weight=1.4):
     #     """Computes the value of the node."""
@@ -103,10 +105,10 @@ class TreeNode:
     #     exploration_term = exploration_weight * (math.log(self.parent.visit_count) / self.visit_count) ** 0.5
     #
     #     return exploitation_term + exploration_term
-    
+
     def traverse_tree(self):
         """Traverses the tree to select a child node."""
-        
+
         # Start from current node
         # Selection and Expansion:
         found_new_child = False
@@ -131,7 +133,6 @@ class TreeNode:
 
         return node
 
-
     def update_rewards(self, reward, discount):
         """Backpropagates and updates the reward values."""
 
@@ -140,21 +141,23 @@ class TreeNode:
         current_node = self
         while current_node.parent != None:
             # Update visit count and cumulative reward for the node
-            current_node.parent.action_values[current_node.parent_action] += reward + discount * (current_node.value / current_node.visit_count)
+            current_node.parent.action_values[current_node.parent_action] += reward + discount * (
+                        current_node.value / current_node.visit_count)
             current_node.parent.visit_count += 1
             current_node.parent.action_visits[current_node.parent_action] += 1
 
             current_node.parent.value += reward + discount * (current_node.value / current_node.visit_count)
 
-            current_node = current_node.parent # Move to the parent node
+            current_node = current_node.parent  # Move to the parent node
             reward *= discount
+
 
 class MonteCarloTreeSearch:
     """
     A class that represents the Monte Carlo Tree Search algorithm.
     """
-    
-    def __init__(self, root_node, planning_duration=5, heuristic=False):
+
+    def __init__(self, root_node, planning_duration=3, heuristic=False):
         """
         Initialises the MCTS with a root node, planning duration, and an exploration factor.
         """
@@ -171,8 +174,6 @@ class MonteCarloTreeSearch:
             # Step 1: Selection
             selected_node = self.root_node.traverse_tree()
 
-
-
             # Check if selected node is terminal
             if not selected_node.state.is_terminal():
                 # Step 2: Expansion
@@ -188,23 +189,22 @@ class MonteCarloTreeSearch:
             #     # If node is terminal, just backpropagate its reward
             #     # terminal_reward = selected_node.state.get_reward_for_terminal()
             #     # selected_node.update_rewards(terminal_reward)
-        
+
         # After MCTS completes, return the best child node of the root based on value function
         # Printing action exploration:
         # for a in self.root_node.action_visits.keys():
         #     print("visits: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_visits[a]))
-            # print("value: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a]))
-            # print("score: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a] / self.root_node.action_visits[a]))
-
+        # print("value: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a]))
+        # print("score: "+str(index_to_actions[a[0]])+","+str(index_to_actions[a[1]])+":   "+str(self.root_node.action_values[a] / self.root_node.action_visits[a]))
 
         return self.root_node.get_best_action()
-
 
     def get_greedy_action(self, state):
 
         if state.human.tiredness >= 3:
             human_action = AtomicAction.REST
-        if state.human.position in belt_positions and not state.human.holding_box and state.belt[state.human.position] == 1:
+        elif state.human.position in belt_positions and not state.human.holding_box and state.belt[
+            state.human.position] == 1:
             human_action = AtomicAction.PICKUP
         elif state.human.holding_box and not state.human.position == Position.DROP_OFF:
             human_action = AtomicAction.GOTO_DROPOFF
@@ -252,11 +252,6 @@ class MonteCarloTreeSearch:
 
         return human_action, robot_action
 
-
-
-
-
-
     def run_simulation(self, starting_node, heuristic):
         """
         Simulates a random trajectory from the given node until a terminal state is reached.
@@ -276,12 +271,12 @@ class MonteCarloTreeSearch:
             # Transition to the next state
             next_state = current_state.take_action(chosen_action, False)
             # Get the reward for the transition
-            transition_reward = current_state.get_reward_for_action(chosen_action, next_state) 
+            transition_reward = current_state.get_reward_for_action(chosen_action, next_state)
             # Accumulate rewards
-            cumulative_reward += transition_reward 
+            cumulative_reward += transition_reward
             current_state = next_state
         return cumulative_reward
-    
+
 
 class Human():
     def __init__(self, position, holding_box, tiredness, lr_bias):
@@ -298,10 +293,10 @@ class Human():
 
     def __eq__(self, other):
         if isinstance(other, Human):
-            return self.position == other.position\
-                and self.holding_box == other.holding_box\
-                and self.tiredness == other.tiredness\
-                and self.lr_bias == other.lr_bias
+            return self.position == other.position \
+                   and self.holding_box == other.holding_box \
+                   and self.tiredness == other.tiredness \
+                   and self.lr_bias == other.lr_bias
         return False
 
     def __str__(self):
@@ -319,12 +314,13 @@ class Robot():
 
     def __eq__(self, other):
         if isinstance(other, Human):
-            return self.position == other.position\
-                and self.holding_box == other.holding_box
+            return self.position == other.position \
+                   and self.holding_box == other.holding_box
         return False
 
     def __str__(self):
         return f"Robot(position={self.position}, holding_box={self.holding_box})"
+
 
 # In transition fn, update tiredness if we rested previously
 
@@ -370,22 +366,28 @@ class AtomicAction():
     PICKUP = 7
     PUTDOWN = 8
 
-go_to_belt_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5]
 
-atomic_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4, AtomicAction.GOTO_P5, AtomicAction.GOTO_DROPOFF, AtomicAction.PICKUP, AtomicAction.PUTDOWN, AtomicAction.REST]
+go_to_belt_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4,
+                      AtomicAction.GOTO_P5]
 
-index_to_actions = ['GOTO_P1','GOTO_P2','GOTO_P3','GOTO_P4','GOTO_P5','GOTO_DROPOFF','REST', 'PICKUP','PUTDOWN']
+atomic_actions = [AtomicAction.GOTO_P1, AtomicAction.GOTO_P2, AtomicAction.GOTO_P3, AtomicAction.GOTO_P4,
+                  AtomicAction.GOTO_P5, AtomicAction.GOTO_DROPOFF, AtomicAction.PICKUP, AtomicAction.PUTDOWN,
+                  AtomicAction.REST]
+
+index_to_actions = ['GOTO_P1', 'GOTO_P2', 'GOTO_P3', 'GOTO_P4', 'GOTO_P5', 'GOTO_DROPOFF', 'REST', 'PICKUP', 'PUTDOWN']
+
+
 class VacuumEnvironmentState:
     """State representation for a vacuum cleaning robot in a grid environment."""
+
     def __init__(self, human, robot, belt, packed, missed, time_step, time_since_rest):
         self.human = human
         self.robot = robot
         self.belt = belt
-        self.packed = packed # count of packed packages
-        self.missed = missed # count of missed missed
+        self.packed = packed  # count of packed packages
+        self.missed = missed  # count of missed missed
         self.time_step = time_step
         self.time_since_rest = time_since_rest
-
 
     def __hash__(self):
         return hash((self.human,
@@ -396,27 +398,24 @@ class VacuumEnvironmentState:
 
     def __eq__(self, other):
         if isinstance(other, VacuumEnvironmentState):
-            return self.human == other.human\
-                and self.robot == other.robot\
-                and self.belt == other.belt\
-                and self.packed == self.packed\
-                and self.missed == other.missed\
-                and self.time_step == other.time_step\
-                and self.time_since_rest == other.time_since_rest
-
+            return self.human == other.human \
+                   and self.robot == other.robot \
+                   and self.belt == other.belt \
+                   and self.packed == self.packed \
+                   and self.missed == other.missed \
+                   and self.time_step == other.time_step \
+                   and self.time_since_rest == other.time_since_rest
 
         return False
 
     def __str__(self):
         return f"State(human={self.human}, robot={self.robot}, belt={self.belt}, packed={self.packed}, missed={self.missed}, time={self.time_step}, since_rest={self.time_since_rest})"
 
-
     def is_terminal(self):
         return False
         # if self.human.holding_box or self.robot.holding_box or (1 in self.belt):
         #     return False
         # return True
-
 
     def get_legal_actions(self):
         """Computes and returns a list of legal actions from the current state."""
@@ -431,8 +430,7 @@ class VacuumEnvironmentState:
             legal_robot.append(AtomicAction.PUTDOWN)
         if self.robot.position <= 4 and not self.robot.holding_box and self.belt[self.robot.position] == 1:
             legal_robot.append(AtomicAction.PICKUP)
-        return [(a,b) for a in legal_human for b in legal_robot]
-
+        return [(a, b) for a in legal_human for b in legal_robot]
 
     def take_action(self, action, is_executing):
         """Returns a new state after applying the given action."""
@@ -441,15 +439,17 @@ class VacuumEnvironmentState:
         robot_action = action[1]
         human_rest_prob = self.human.tiredness / 10
 
-        resultant_state = VacuumEnvironmentState(copy.copy(self.human), copy.copy(self.robot), copy.copy(self.belt), copy.copy(self.packed), copy.copy(self.missed), self.time_step + 1, copy.copy(self.time_since_rest))
-        
+        resultant_state = VacuumEnvironmentState(copy.copy(self.human), copy.copy(self.robot), copy.copy(self.belt),
+                                                 copy.copy(self.packed), copy.copy(self.missed), self.time_step + 1,
+                                                 copy.copy(self.time_since_rest))
+
         if human_action == AtomicAction.REST:
             resultant_state.human.position = Position.REST_POSITION
         elif human_action == AtomicAction.GOTO_DROPOFF:
             rand = np.random.rand()
             if not rand <= human_rest_prob:
-            #     resultant_state.human.position = Position.REST_POSITION
-            # else:
+                #     resultant_state.human.position = Position.REST_POSITION
+                # else:
                 resultant_state.human.position = Position.DROP_OFF
 
         elif human_action == AtomicAction.PUTDOWN:
@@ -459,8 +459,8 @@ class VacuumEnvironmentState:
             else:
                 rand = np.random.rand()
                 if not rand <= human_rest_prob:
-                #     resultant_state.human.position = Position.REST_POSITION
-                # else:
+                    #     resultant_state.human.position = Position.REST_POSITION
+                    # else:
                     resultant_state.human.position = Position.DROP_OFF
                     resultant_state.human.holding_box = False
                     resultant_state.packed += 1
@@ -472,8 +472,8 @@ class VacuumEnvironmentState:
             else:
                 index = belt_to_index(self.human.position)
                 if not self.belt[index] == 0:
-                #     resultant_state.human.position = Position.REST_POSITION
-                # else:
+                    #     resultant_state.human.position = Position.REST_POSITION
+                    # else:
                     resultant_state.human.holding_box = True
                     resultant_state.belt[index] = 0
 
@@ -495,13 +495,14 @@ class VacuumEnvironmentState:
                     for i in range(intended, self.human.lr_bias + 1):
                         if i == intended:
                             prob += 0.5
-                        prob += 0.5*(1 / (abs(bias_difference) + 1))
+                        prob += 0.5 * (1 / (abs(bias_difference) + 1))
                         probs.append((i, prob))
                     rand = np.random.rand()
 
-                    for i in range(len(probs) - 1):
+                    for i in range(len(probs)):
                         if rand <= probs[i][1]:
                             resultant_state.human.position = belt_positions[probs[i][0]]
+                            break
 
 
                 elif bias_difference < 0:
@@ -514,11 +515,10 @@ class VacuumEnvironmentState:
                         probs.append((i, prob))
                     rand = np.random.rand()
 
-                    for i in range(len(probs) - 1):
+                    for i in range(len(probs)):
                         if rand <= probs[i][1]:
                             resultant_state.human.position = belt_positions[probs[i][0]]
-
-
+                            break
 
         # ROBOT TIME:
         if robot_action == AtomicAction.REST:
@@ -614,54 +614,50 @@ class VacuumEnvironmentState:
 
         # Update tiredness of human:
         if resultant_state.human.position == Position.REST_POSITION:
-            resultant_state.human.tiredness = max(0 , resultant_state.human.tiredness - 3)
+            resultant_state.human.tiredness = max(0, resultant_state.human.tiredness - 3)
             resultant_state.time_since_rest = 0
         else:
             l = 0.2
-            resultant_state.human.tiredness = int(round(4 * (1 - np.e**(-l * self.time_since_rest))))
+            resultant_state.human.tiredness = int(round(4 * (1 - np.e ** (-l * self.time_since_rest))))
             resultant_state.time_since_rest += 1
 
         return resultant_state
-
 
     def get_reward_for_action(self, action, next_state):
         """Computes the reward for taking an action that leads to a new state."""
         reward = -1
         # if next_state.packed > self.packed:
         #     reward += 100
-        reward += 10*next_state.packed / self.time_step
+        reward += 10 * next_state.packed / self.time_step
         # if next_state.human.holding_box and not self.human.holding_box:
         #     reward += 50
         # if next_state.robot.holding_box and not self.robot.holding_box:
         #     reward += 50
         return reward
-    
-
 
     def get_reward_for_terminal(self):
         """Returns the reward when all cells are clean."""
         return 50
 
-    
-    
+
 def simulate_mcts_run(planning_duration, trial_num):
     # Initialise grid with randomly placed obstacles
 
-    human1 = Human(Position.PICKUP_1,False, 0, 0)
+    human1 = Human(Position.PICKUP_1, False, 0, 0)
     robot = Robot(Position.REST_POSITION, False)
-    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0,0,0,0,0]), 0,0, 1, 0)
+    init_true_state = VacuumEnvironmentState(human1, robot, np.array([0, 0, 0, 0, 0]), 0, 0, 1, 0)
 
     # Initialise the type of flooring for each grid cell (all set to 'VINYL').
-    
+
     cumulative_reward = 0
     # Create an initial state for the vacuum environment.
     current_state = init_true_state
     steps = 0
-    
+
     print(f"\nTrial {trial_num + 1} for belt size 5:")
     i = 0
     while i < STEPS_PER_TRIAL:
-        i += 1 
+        i += 1
         # Initialise a new tree node with the current state.
         root = TreeNode(current_state)
 
@@ -680,15 +676,14 @@ def simulate_mcts_run(planning_duration, trial_num):
         # print(aggregated_visits)
 
         best_action = mcts.run_search()
-        
+
         print("Human action taken:", index_to_actions[best_action[0]])
         print("Robot action taken:", index_to_actions[best_action[1]])
-        
-        
+
         next_state = current_state.take_action(best_action, True)
-        reward = current_state.get_reward_for_action(best_action, next_state )
+        reward = current_state.get_reward_for_action(best_action, next_state)
         print("Reward: ", reward)
-        cumulative_reward += reward 
+        cumulative_reward += reward
 
         current_state = next_state
 
@@ -703,18 +698,20 @@ def simulate_mcts_run(planning_duration, trial_num):
     print("Cumulative reward: ", cumulative_reward)
     return cumulative_reward
 
-def run_experiments(planning_duration=5, num_trials=50):
+
+def run_experiments(planning_duration=3, num_trials=50):
     results = []
 
     for n in range(1):
         # Run multiple trials for each grid size and store the data.
         trials_data = [simulate_mcts_run(planning_duration, i) for i in range(num_trials)]
-        
+
         # Extract the number of steps and time taken for each trial.
 
         results.append(trials_data)
 
     print(results)
+
 
 def display_results(results):
     print("\nResults:")
@@ -722,6 +719,7 @@ def display_results(results):
     print("-" * 90)
     for n, median_steps, median_time, std_steps, std_time in results:
         print(f"{n:<10}{median_steps:<15.2f}{median_time:<25.2f}{std_steps:<20.2f}{std_time:<20.2f}")
+
 
 def main():
     run_experiments()
@@ -732,6 +730,8 @@ def belt_to_index(position):
         if position == belt_positions[i]:
             return i
     return -1
+
+
 #
 #
 
@@ -842,8 +842,6 @@ def row_loc(x):
 
 def col_loc(x):
     return 3 + 6 * x
-
-
 
 
 if __name__ == '__main__':
