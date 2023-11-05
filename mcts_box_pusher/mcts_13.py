@@ -145,8 +145,8 @@ class MonteCarloTreeSearch:
         """
         Executes the MCTS algorithm for a specified duration.
         """
-        end_time = time.time() + self.planning_duration
-        while time.time() < end_time:
+        end_time = time.process_time() + self.planning_duration
+        while time.process_time() < end_time:
             # Step 1: Selection
             selected_node = self.root_node.traverse_tree()
 
