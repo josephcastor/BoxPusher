@@ -377,10 +377,7 @@ class VacuumEnvironmentState:
         return 50
 
 def greedy_action(state):
-    if state.human.tiredness >= 3:
-        human_action = AtomicAction.REST
-    elif state.human.position in belt_positions and not state.human.holding_box and state.belt[
-        state.human.position] == 1:
+    if state.human.position in belt_positions and not state.human.holding_box and state.belt[state.human.position] == 1:
         human_action = AtomicAction.PICKUP
     elif state.human.holding_box and not state.human.position == Position.DROP_OFF:
         human_action = AtomicAction.GOTO_DROPOFF
@@ -391,16 +388,13 @@ def greedy_action(state):
         future_boxes = [x for x in state.belt[1:]]
         future_boxes.append(1)
         # Picking closest to lr bias:
-        closest = None
-        closest_difference = None
+        cell_with_box = None
         for i in range(len(future_boxes)):
             if future_boxes[i] == 1:
-                difference = abs(i - state.human.lr_bias)
-                if closest_difference is None or difference < closest_difference:
-                    closest = i
-                    closest_difference = difference
-        if closest is not None:
-            human_action = go_to_belt_actions[closest]
+                if cell_with_box is None:
+                    cell_with_box = i
+        if cell_with_box is not None:
+            human_action = go_to_belt_actions[cell_with_box]
         else:
             human_action = len(belt_positions) - 1
 
