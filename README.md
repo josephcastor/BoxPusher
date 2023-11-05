@@ -1,5 +1,11 @@
 # BoxPusher
 
+
+
+https://github.com/josephcastor/BoxPusher/assets/125428516/656426b1-c1e9-4e51-a50a-fb12e8ded7d8
+
+
+
 ## Running the solver:
 Belt of size 5:
 `python3 mcts.py`
