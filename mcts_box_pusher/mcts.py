@@ -154,7 +154,7 @@ class MonteCarloTreeSearch:
     A class that represents the Monte Carlo Tree Search algorithm.
     """
     
-    def __init__(self, root_node, planning_duration=5, heuristic=False):
+    def __init__(self, root_node, planning_duration=3, heuristic=False):
         """
         Initialises the MCTS with a root node, planning duration, and an exploration factor.
         """
@@ -703,7 +703,7 @@ def simulate_mcts_run(planning_duration, trial_num):
     print("Cumulative reward: ", cumulative_reward)
     return cumulative_reward
 
-def run_experiments(planning_duration=5, num_trials=50):
+def run_experiments(planning_duration=3, num_trials=50):
     results = []
 
     for n in range(1):
