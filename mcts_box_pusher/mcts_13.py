@@ -4,7 +4,7 @@ import random
 import numpy as np
 import copy
 
-exploration_constant = 100
+exploration_constant = 10
 
 STEPS_PER_TRIAL = 30
 
@@ -183,7 +183,7 @@ class MonteCarloTreeSearch:
 
         if state.human.tiredness >= 3:
             human_action = AtomicAction.REST
-        if state.human.position in belt_positions and not state.human.holding_box and state.belt[state.human.position] == 1:
+        elif state.human.position in belt_positions and not state.human.holding_box and state.belt[state.human.position] == 1:
             human_action = AtomicAction.PICKUP
         elif state.human.holding_box and not state.human.position == Position.DROP_OFF:
             human_action = AtomicAction.GOTO_DROPOFF
